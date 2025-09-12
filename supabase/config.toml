@@ -1,1 +1,7 @@
 project_id = "bqwaasdjpxlucgsknryp"
+
+[functions.ldap-auth]
+verify_jwt = false
+
+[functions.process-file-upload]
+verify_jwt = true

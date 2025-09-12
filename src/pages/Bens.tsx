@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -26,12 +27,15 @@ import {
   Edit,
   Trash2,
   Eye,
-  MapPin
+  MapPin,
+  Upload
 } from "lucide-react";
+import FileUpload from "@/components/FileUpload";
 
 export default function Bens() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCondicao, setSelectedCondicao] = useState("all");
+  const [activeTab, setActiveTab] = useState("list");
 
   // Mock data - em um app real, viria do banco de dados
   const bens = [
@@ -94,149 +98,174 @@ export default function Bens() {
             Gerencie todos os bens patrimoniais da organização
           </p>
         </div>
-        <Button className="shadow-primary">
-          <Plus className="w-4 h-4 mr-2" />
-          Novo Bem
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setActiveTab("upload")}>
+            <Upload className="w-4 h-4 mr-2" />
+            Importar
+          </Button>
+          <Button className="shadow-primary">
+            <Plus className="w-4 h-4 mr-2" />
+            Novo Bem
+          </Button>
+        </div>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Filtros</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                <Input
-                  placeholder="Buscar por descrição ou número patrimônio..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            <Select value={selectedCondicao} onValueChange={setSelectedCondicao}>
-              <SelectTrigger className="w-full sm:w-48">
-                <Filter className="w-4 h-4 mr-2" />
-                <SelectValue placeholder="Condição" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas condições</SelectItem>
-                <SelectItem value="bom">Bom</SelectItem>
-                <SelectItem value="inservível">Inservível</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList>
+          <TabsTrigger value="list">Lista de Bens</TabsTrigger>
+          <TabsTrigger value="upload">Importar Arquivo</TabsTrigger>
+        </TabsList>
 
-      {/* Statistics */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total de Bens</p>
-                <p className="text-2xl font-bold text-foreground">{bens.length}</p>
+        <TabsContent value="list" className="space-y-6">
+          {/* Filters */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Filtros</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                    <Input
+                      placeholder="Buscar por descrição ou número patrimônio..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+                <Select value={selectedCondicao} onValueChange={setSelectedCondicao}>
+                  <SelectTrigger className="w-full sm:w-48">
+                    <Filter className="w-4 h-4 mr-2" />
+                    <SelectValue placeholder="Condição" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas condições</SelectItem>
+                    <SelectItem value="bom">Bom</SelectItem>
+                    <SelectItem value="inservível">Inservível</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="w-12 h-12 bg-primary-light rounded-lg flex items-center justify-center">
-                <Package className="w-6 h-6 text-primary" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Em Bom Estado</p>
-                <p className="text-2xl font-bold text-success">{bens.filter(b => b.condicao === 'bom').length}</p>
-              </div>
-              <div className="w-12 h-12 bg-success-light rounded-lg flex items-center justify-center">
-                <Package className="w-6 h-6 text-success" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Inservíveis</p>
-                <p className="text-2xl font-bold text-destructive">{bens.filter(b => b.condicao === 'inservível').length}</p>
-              </div>
-              <div className="w-12 h-12 bg-destructive-light rounded-lg flex items-center justify-center">
-                <Package className="w-6 h-6 text-destructive" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
 
-      {/* Bens Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Lista de Bens ({filteredBens.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Patrimônio</TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Condição</TableHead>
-                  <TableHead>Ambiente</TableHead>
-                  <TableHead>Responsável</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredBens.map((bem) => (
-                  <TableRow key={bem.id} className="hover:bg-muted/50 transition-smooth">
-                    <TableCell className="font-medium">
-                      {bem.numero_patrimonio}
-                    </TableCell>
-                    <TableCell>{bem.descricao}</TableCell>
-                    <TableCell>
-                      <Badge variant={bem.condicao === 'bom' ? 'default' : 'destructive'}>
-                        {bem.condicao === 'bom' ? 'Bom' : 'Inservível'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-muted-foreground" />
-                        {bem.ambiente}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {bem.usuario || (
-                        <span className="text-muted-foreground">Não alocado</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="sm">
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <Trash2 className="w-4 h-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          {/* Statistics */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Total de Bens</p>
+                    <p className="text-2xl font-bold text-foreground">{bens.length}</p>
+                  </div>
+                  <div className="w-12 h-12 bg-primary-light rounded-lg flex items-center justify-center">
+                    <Package className="w-6 h-6 text-primary" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Em Bom Estado</p>
+                    <p className="text-2xl font-bold text-success">{bens.filter(b => b.condicao === 'bom').length}</p>
+                  </div>
+                  <div className="w-12 h-12 bg-success-light rounded-lg flex items-center justify-center">
+                    <Package className="w-6 h-6 text-success" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Inservíveis</p>
+                    <p className="text-2xl font-bold text-destructive">{bens.filter(b => b.condicao === 'inservível').length}</p>
+                  </div>
+                  <div className="w-12 h-12 bg-destructive-light rounded-lg flex items-center justify-center">
+                    <Package className="w-6 h-6 text-destructive" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
+
+          {/* Bens Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Lista de Bens ({filteredBens.length})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Patrimônio</TableHead>
+                      <TableHead>Descrição</TableHead>
+                      <TableHead>Condição</TableHead>
+                      <TableHead>Ambiente</TableHead>
+                      <TableHead>Responsável</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredBens.map((bem) => (
+                      <TableRow key={bem.id} className="hover:bg-muted/50 transition-smooth">
+                        <TableCell className="font-medium">
+                          {bem.numero_patrimonio}
+                        </TableCell>
+                        <TableCell>{bem.descricao}</TableCell>
+                        <TableCell>
+                          <Badge variant={bem.condicao === 'bom' ? 'default' : 'destructive'}>
+                            {bem.condicao === 'bom' ? 'Bom' : 'Inservível'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4 text-muted-foreground" />
+                            {bem.ambiente}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {bem.usuario || (
+                            <span className="text-muted-foreground">Não alocado</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button variant="ghost" size="sm">
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm">
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm">
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="upload">
+          <FileUpload 
+            onUploadComplete={(results) => {
+              console.log("Upload completed:", results);
+              // Optionally switch back to list tab and refresh data
+              setActiveTab("list");
+            }}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

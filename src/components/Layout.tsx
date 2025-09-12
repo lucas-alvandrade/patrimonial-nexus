@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Outlet, Link, useLocation } from "react-router-dom";
+import { Outlet, Link, useLocation, Navigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
   Building2,
@@ -10,9 +10,12 @@ import {
   X,
   MapPin,
   Settings,
-  Home
+  Home,
+  LogOut,
+  User
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
@@ -26,6 +29,25 @@ const navigation = [
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const { user, logout, loading } = useAuth();
+
+  // Show loading spinner while checking auth state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Redirect to login if not authenticated
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const handleLogout = async () => {
+    await logout();
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -39,7 +61,7 @@ export default function Layout() {
 
       {/* Sidebar */}
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 w-72 bg-card border-r border-border transition-transform duration-300 lg:translate-x-0",
+        "fixed inset-y-0 left-0 z-50 w-72 bg-card border-r border-border transition-transform duration-300 lg:translate-x-0 flex flex-col",
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex h-16 items-center justify-between px-6 border-b border-border">
@@ -59,7 +81,7 @@ export default function Layout() {
           </Button>
         </div>
 
-        <nav className="p-4 space-y-2">
+        <nav className="p-4 space-y-2 flex-1">
           {navigation.map((item) => {
             const isActive = location.pathname === item.href;
             return (
@@ -80,6 +102,23 @@ export default function Layout() {
             );
           })}
         </nav>
+
+        {/* Mobile user info and logout */}
+        <div className="mt-auto p-4 border-t border-border lg:hidden">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+            <User className="h-4 w-4" />
+            <span className="truncate">{user.email}</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleLogout}
+            className="w-full justify-start"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Sair
+          </Button>
+        </div>
       </div>
 
       {/* Main content */}
@@ -95,8 +134,18 @@ export default function Layout() {
           </Button>
           
           <div className="flex items-center space-x-4 ml-auto">
-            <Button variant="ghost" size="sm">
-              <Settings className="w-5 h-5" />
+            <div className="hidden lg:flex items-center gap-2 text-sm text-muted-foreground">
+              <User className="h-4 w-4" />
+              <span>{user.email}</span>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={handleLogout}
+              className="hidden lg:flex"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Sair
             </Button>
           </div>
         </header>
