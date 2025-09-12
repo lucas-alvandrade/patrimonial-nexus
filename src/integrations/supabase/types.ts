@@ -14,7 +14,166 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      ambiente_bens: {
+        Row: {
+          ambiente_id: number | null
+          bem_id: number | null
+          created_at: string
+          data_registro: string | null
+          id: number
+          updated_at: string
+          usuario_id: number | null
+        }
+        Insert: {
+          ambiente_id?: number | null
+          bem_id?: number | null
+          created_at?: string
+          data_registro?: string | null
+          id?: never
+          updated_at?: string
+          usuario_id?: number | null
+        }
+        Update: {
+          ambiente_id?: number | null
+          bem_id?: number | null
+          created_at?: string
+          data_registro?: string | null
+          id?: never
+          updated_at?: string
+          usuario_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ambiente_bens_ambiente_id_fkey"
+            columns: ["ambiente_id"]
+            isOneToOne: false
+            referencedRelation: "ambientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ambiente_bens_bem_id_fkey"
+            columns: ["bem_id"]
+            isOneToOne: false
+            referencedRelation: "bens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ambiente_bens_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ambientes: {
+        Row: {
+          created_at: string
+          descricao: string | null
+          id: number
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          descricao?: string | null
+          id?: never
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          descricao?: string | null
+          id?: never
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      bens: {
+        Row: {
+          condicao: string
+          created_at: string
+          descricao: string | null
+          id: number
+          numero_patrimonio: string
+          updated_at: string
+        }
+        Insert: {
+          condicao: string
+          created_at?: string
+          descricao?: string | null
+          id?: never
+          numero_patrimonio: string
+          updated_at?: string
+        }
+        Update: {
+          condicao?: string
+          created_at?: string
+          descricao?: string | null
+          id?: never
+          numero_patrimonio?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      patrimonio: {
+        Row: {
+          condicao: string
+          created_at: string
+          descricao: string | null
+          id: number
+          localizacao: string
+          numero_patrimonio: string
+          updated_at: string
+        }
+        Insert: {
+          condicao: string
+          created_at?: string
+          descricao?: string | null
+          id?: never
+          localizacao: string
+          numero_patrimonio: string
+          updated_at?: string
+        }
+        Update: {
+          condicao?: string
+          created_at?: string
+          descricao?: string | null
+          id?: never
+          localizacao?: string
+          numero_patrimonio?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      usuarios: {
+        Row: {
+          created_at: string
+          email: string
+          id: number
+          ldap_id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: never
+          ldap_id: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: never
+          ldap_id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
