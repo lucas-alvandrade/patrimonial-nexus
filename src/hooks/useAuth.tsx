@@ -5,6 +5,8 @@ import { User, Session } from "@supabase/supabase-js";
 interface AuthContextType {
   user: User | null;
   session: Session | null;
+  userRole: 'admin' | 'user' | null;
+  isAdmin: boolean;
   login: (ldapId: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   loading: boolean;
@@ -15,7 +17,33 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [userRole, setUserRole] = useState<'admin' | 'user' | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Fetch user role from database
+  const fetchUserRole = async (user: User) => {
+    try {
+      const ldapId = user.user_metadata?.ldap_id;
+      if (!ldapId) return;
+
+      const { data, error } = await supabase
+        .from('usuarios')
+        .select('role')
+        .eq('ldap_id', ldapId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user role:', error);
+        setUserRole('user'); // Default to user role
+        return;
+      }
+
+      setUserRole(data?.role || 'user');
+    } catch (error) {
+      console.error('Error in fetchUserRole:', error);
+      setUserRole('user');
+    }
+  };
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -23,6 +51,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          // Defer role fetching to avoid auth state change issues
+          setTimeout(() => {
+            fetchUserRole(session.user);
+          }, 0);
+        } else {
+          setUserRole(null);
+        }
+        
         setLoading(false);
       }
     );
@@ -31,6 +69,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        fetchUserRole(session.user);
+      }
+      
       setLoading(false);
     });
 
@@ -56,7 +99,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           .upsert({
             nome: data.user.displayName || ldapId,
             email: data.user.mail || `${ldapId}@company.com`,
-            ldap_id: ldapId
+            ldap_id: ldapId,
+            role: 'user' // Default role for new users
           })
           .select()
           .single();
@@ -109,9 +153,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const isAdmin = userRole === 'admin';
+
   const value = {
     user,
     session,
+    userRole,
+    isAdmin,
     login,
     logout,
     loading,
