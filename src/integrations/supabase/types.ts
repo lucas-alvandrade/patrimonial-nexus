@@ -42,29 +42,7 @@ export type Database = {
           updated_at?: string
           usuario_id?: number | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "ambiente_bens_ambiente_id_fkey"
-            columns: ["ambiente_id"]
-            isOneToOne: false
-            referencedRelation: "ambientes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ambiente_bens_bem_id_fkey"
-            columns: ["bem_id"]
-            isOneToOne: false
-            referencedRelation: "bens"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ambiente_bens_usuario_id_fkey"
-            columns: ["usuario_id"]
-            isOneToOne: false
-            referencedRelation: "usuarios"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       ambientes: {
         Row: {
