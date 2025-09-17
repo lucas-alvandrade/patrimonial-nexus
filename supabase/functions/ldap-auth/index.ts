@@ -61,6 +61,9 @@ serve(async (req) => {
     );
 
     if (isValidCredentials) {
+      // Check if this is the admin user
+      const isAdminUser = ldapId === '222574';
+      
       const user: LDAPUser = {
         uid: ldapId,
         displayName: `User ${ldapId}`, // This would come from LDAP
@@ -68,11 +71,16 @@ serve(async (req) => {
       };
 
       console.log(`LDAP authentication successful for user: ${ldapId}`);
+      
+      if (isAdminUser) {
+        console.log(`Admin user detected: ${ldapId}`);
+      }
 
       return new Response(
         JSON.stringify({ 
           success: true, 
           user: user,
+          isAdmin: isAdminUser,
           message: 'Authentication successful'
         }),
         {

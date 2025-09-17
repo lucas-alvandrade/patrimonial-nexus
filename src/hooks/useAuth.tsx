@@ -100,7 +100,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             nome: data.user.displayName || ldapId,
             email: data.user.mail || `${ldapId}@company.com`,
             ldap_id: ldapId,
-            role: 'user' // Default role for new users
+            role: data.isAdmin ? 'admin' : 'user' // Set role based on LDAP response
           })
           .select()
           .single();
