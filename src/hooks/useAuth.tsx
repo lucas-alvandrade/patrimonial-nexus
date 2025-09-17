@@ -84,65 +84,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       // Simple local authentication
       if (username === 'admin' && password === '123456') {
-        // Check if admin user exists in database
-        const { data: existingUser, error: fetchError } = await supabase
-          .from('usuarios')
-          .select('*')
-          .eq('ldap_id', 'admin')
-          .single();
+        // For local admin, create a session directly without Supabase auth
+        // Set user data manually for local authentication
+        const adminUser = {
+          id: 'local-admin',
+          email: 'admin@sistema.local',
+          user_metadata: { ldap_id: 'admin' },
+          app_metadata: {},
+          aud: 'authenticated',
+          role: 'authenticated',
+          created_at: new Date().toISOString(),
+          email_confirmed_at: new Date().toISOString(),
+          phone_confirmed_at: null,
+          confirmed_at: new Date().toISOString(),
+          last_sign_in_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        } as User;
 
-        if (fetchError && fetchError.code !== 'PGRST116') {
-          console.error('Error fetching user:', fetchError);
-          return false;
-        }
+        // Create a mock session
+        const adminSession = {
+          access_token: 'local-admin-token',
+          refresh_token: 'local-admin-refresh',
+          expires_in: 3600,
+          expires_at: Math.floor(Date.now() / 1000) + 3600,
+          token_type: 'bearer',
+          user: adminUser
+        } as Session;
 
-        let userData = existingUser;
-
-        if (!existingUser) {
-          // Create admin user if doesn't exist
-          const { data: newUser, error: insertError } = await supabase
-            .from('usuarios')
-            .insert({
-              nome: 'Administrador',
-              email: 'admin@sistema.local',
-              ldap_id: 'admin',
-              role: 'admin'
-            })
-            .select()
-            .single();
-
-          if (insertError) {
-            console.error('Error creating admin user:', insertError);
-            return false;
-          }
-          userData = newUser;
-        }
-
-        // Sign in with Supabase
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: userData.email,
-          password: 'local-auth'
-        });
-
-        if (signInError) {
-          // If user doesn't exist in auth, create them
-          const { error: signUpError } = await supabase.auth.signUp({
-            email: userData.email,
-            password: 'local-auth',
-            options: {
-              emailRedirectTo: `${window.location.origin}/`,
-              data: {
-                display_name: userData.nome,
-                ldap_id: userData.ldap_id
-              }
-            }
-          });
-
-          if (signUpError) {
-            console.error('Sign up error:', signUpError);
-            return false;
-          }
-        }
+        // Set state directly for local auth
+        setUser(adminUser);
+        setSession(adminSession);
+        setUserRole('admin');
 
         return true;
       }
@@ -155,10 +127,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error('Logout error:', error);
-    }
+    // For local auth, just clear the state
+    setUser(null);
+    setSession(null);
+    setUserRole(null);
   };
 
   const isAdmin = userRole === 'admin';
