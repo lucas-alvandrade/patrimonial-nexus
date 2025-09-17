@@ -7,7 +7,7 @@ interface AuthContextType {
   session: Session | null;
   userRole: 'admin' | 'user' | null;
   isAdmin: boolean;
-  login: (ldapId: string, password: string) => Promise<boolean>;
+  login: (username: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   loading: boolean;
 }
@@ -80,52 +80,60 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const login = async (ldapId: string, password: string): Promise<boolean> => {
+  const login = async (username: string, password: string): Promise<boolean> => {
     try {
-      // Call LDAP authentication edge function
-      const { data, error } = await supabase.functions.invoke('ldap-auth', {
-        body: { ldapId, password }
-      });
-
-      if (error) {
-        console.error('LDAP auth error:', error);
-        return false;
-      }
-
-      if (data?.success && data?.user) {
-        // Create or update user in database
-        const { data: userData, error: userError } = await supabase
+      // Simple local authentication
+      if (username === 'admin' && password === '123456') {
+        // Check if admin user exists in database
+        const { data: existingUser, error: fetchError } = await supabase
           .from('usuarios')
-          .upsert({
-            nome: data.user.displayName || ldapId,
-            email: data.user.mail || `${ldapId}@company.com`,
-            ldap_id: ldapId,
-            role: data.isAdmin ? 'admin' : 'user' // Set role based on LDAP response
-          })
-          .select()
+          .select('*')
+          .eq('ldap_id', 'admin')
           .single();
 
-        if (userError) {
-          console.error('User upsert error:', userError);
+        if (fetchError && fetchError.code !== 'PGRST116') {
+          console.error('Error fetching user:', fetchError);
           return false;
         }
 
-        // Sign in with Supabase using a custom token
+        let userData = existingUser;
+
+        if (!existingUser) {
+          // Create admin user if doesn't exist
+          const { data: newUser, error: insertError } = await supabase
+            .from('usuarios')
+            .insert({
+              nome: 'Administrador',
+              email: 'admin@sistema.local',
+              ldap_id: 'admin',
+              role: 'admin'
+            })
+            .select()
+            .single();
+
+          if (insertError) {
+            console.error('Error creating admin user:', insertError);
+            return false;
+          }
+          userData = newUser;
+        }
+
+        // Sign in with Supabase
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email: userData.email,
-          password: 'ldap-authenticated' // This is a placeholder, actual auth is via LDAP
+          password: 'local-auth'
         });
 
         if (signInError) {
           // If user doesn't exist in auth, create them
           const { error: signUpError } = await supabase.auth.signUp({
             email: userData.email,
-            password: 'ldap-authenticated',
+            password: 'local-auth',
             options: {
               emailRedirectTo: `${window.location.origin}/`,
               data: {
                 display_name: userData.nome,
-                ldap_id: ldapId
+                ldap_id: userData.ldap_id
               }
             }
           });

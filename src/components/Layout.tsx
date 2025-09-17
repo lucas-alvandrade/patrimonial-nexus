@@ -26,10 +26,14 @@ const navigation = [
   { name: "Relatórios", href: "/relatorios", icon: BarChart3 },
 ];
 
+const adminNavigation = [
+  { name: "Configurações", href: "/configuracoes", icon: Settings },
+];
+
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
-  const { user, logout, loading } = useAuth();
+  const { user, logout, loading, isAdmin } = useAuth();
 
   // Show loading spinner while checking auth state
   if (loading) {
@@ -101,6 +105,34 @@ export default function Layout() {
               </Link>
             );
           })}
+
+          {/* Admin-only navigation */}
+          {isAdmin && (
+            <>
+              <div className="border-t border-border my-2 pt-2">
+                <p className="px-4 text-xs text-muted-foreground font-medium mb-2">ADMINISTRAÇÃO</p>
+              </div>
+              {adminNavigation.map((item) => {
+                const isActive = location.pathname === item.href;
+                return (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    onClick={() => setSidebarOpen(false)}
+                    className={cn(
+                      "flex items-center space-x-3 px-4 py-3 text-sm font-medium rounded-lg transition-smooth",
+                      isActive
+                        ? "bg-primary text-primary-foreground shadow-primary"
+                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    )}
+                  >
+                    <item.icon className="w-5 h-5" />
+                    <span>{item.name}</span>
+                  </Link>
+                );
+              })}
+            </>
+          )}
         </nav>
 
         {/* Mobile user info and logout */}

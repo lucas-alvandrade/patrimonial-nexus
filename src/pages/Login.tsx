@@ -9,7 +9,7 @@ import { Loader2, Lock, User } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 const Login = () => {
-  const [ldapId, setLdapId] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -22,11 +22,11 @@ const Login = () => {
     setError("");
 
     try {
-      const success = await login(ldapId, password);
+      const success = await login(username, password);
       if (success) {
         navigate("/");
       } else {
-        setError("Credenciais inválidas ou erro de conexão LDAP");
+        setError("Credenciais inválidas");
       }
     } catch (err) {
       setError("Erro interno. Tente novamente.");
@@ -45,21 +45,21 @@ const Login = () => {
           </div>
           <CardTitle className="text-2xl font-bold">PatrimonioSys</CardTitle>
           <CardDescription>
-            Entre com suas credenciais LDAP para acessar o sistema
+            Entre com suas credenciais para acessar o sistema
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="ldapId">Usuário LDAP</Label>
+              <Label htmlFor="username">Usuário</Label>
               <div className="relative">
                 <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
-                  id="ldapId"
+                  id="username"
                   type="text"
-                  placeholder="Digite seu usuário LDAP"
-                  value={ldapId}
-                  onChange={(e) => setLdapId(e.target.value)}
+                  placeholder="Digite seu usuário"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   className="pl-10"
                   required
                   disabled={isLoading}

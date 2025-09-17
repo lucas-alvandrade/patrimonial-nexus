@@ -11,6 +11,7 @@ import Ambientes from "./pages/Ambientes";
 import Usuarios from "./pages/Usuarios";
 import Alocacoes from "./pages/Alocacoes";
 import Relatorios from "./pages/Relatorios";
+import Configuracoes from "./pages/Configuracoes";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
@@ -32,6 +33,7 @@ const App = () => (
               <Route path="usuarios" element={<Usuarios />} />
               <Route path="alocacoes" element={<Alocacoes />} />
               <Route path="relatorios" element={<Relatorios />} />
+              <Route path="configuracoes" element={<Configuracoes />} />
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
