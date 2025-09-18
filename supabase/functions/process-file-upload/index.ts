@@ -51,37 +51,58 @@ serve(async (req) => {
 
     console.log(`Parsed ${data.length} rows from file`);
 
-    let insertResults;
-    let errors: string[] = [];
-
-    // Process data based on upload type
-    if (uploadType === 'ambientes') {
-      insertResults = await processAmbientes(supabase, data);
-    } else if (uploadType === 'bens') {
-      insertResults = await processBens(supabase, data);
-    } else {
-      throw new Error('Unsupported upload type');
-    }
-
-    const successCount = insertResults.filter(r => r.success).length;
-    const errorCount = insertResults.filter(r => !r.success).length;
-
-    console.log(`Processing complete: ${successCount} successful, ${errorCount} errors`);
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        results: {
-          total: data.length,
-          successful: successCount,
-          errors: errorCount,
-          details: insertResults
+    // For large files, process in background
+    if (data.length > 1000) {
+      // Start background processing
+      EdgeRuntime.waitUntil(processLargeFile(supabase, data, uploadType));
+      
+      // Return immediate response
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'File processing started in background',
+          results: {
+            total: data.length,
+            status: 'processing',
+            message: 'Large file is being processed. Please check back in a few minutes.'
+          }
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      );
+    } else {
+      // Process small files immediately
+      let insertResults;
+      
+      if (uploadType === 'ambientes') {
+        insertResults = await processAmbientes(supabase, data);
+      } else if (uploadType === 'bens') {
+        insertResults = await processBens(supabase, data);
+      } else {
+        throw new Error('Unsupported upload type');
       }
-    );
+
+      const successCount = insertResults.filter(r => r.success).length;
+      const errorCount = insertResults.filter(r => !r.success).length;
+
+      console.log(`Processing complete: ${successCount} successful, ${errorCount} errors`);
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          results: {
+            total: data.length,
+            successful: successCount,
+            errors: errorCount,
+            details: insertResults.slice(0, 10) // Only return first 10 for large datasets
+          }
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
 
   } catch (error) {
     console.error('File processing error:', error);
@@ -292,3 +313,33 @@ async function processBens(supabase: any, data: CSVRow[]) {
 
   return results;
 }
+
+// Background processing function for large files
+async function processLargeFile(supabase: any, data: CSVRow[], uploadType: string) {
+  try {
+    console.log(`Starting background processing of ${data.length} records for ${uploadType}`);
+    
+    let insertResults;
+    
+    if (uploadType === 'ambientes') {
+      insertResults = await processAmbientes(supabase, data);
+    } else if (uploadType === 'bens') {
+      insertResults = await processBens(supabase, data);
+    } else {
+      throw new Error('Unsupported upload type');
+    }
+
+    const successCount = insertResults.filter(r => r.success).length;
+    const errorCount = insertResults.filter(r => !r.success).length;
+
+    console.log(`Background processing complete: ${successCount} successful, ${errorCount} errors`);
+    
+  } catch (error) {
+    console.error('Background processing error:', error);
+  }
+}
+
+// Handle function shutdown
+addEventListener('beforeunload', (ev) => {
+  console.log('Function shutdown due to:', ev.detail?.reason);
+});

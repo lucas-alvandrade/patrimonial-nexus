@@ -262,13 +262,24 @@ export default function Bens() {
           <FileUpload 
             onUploadComplete={(results) => {
               console.log("Upload completed:", results);
-              // Refresh the bens list and switch back to list tab
-              fetchBens();
-              setActiveTab("list");
-              toast({
-                title: "Upload concluído",
-                description: `${results.successful || 0} bens importados com sucesso.`,
-              });
+              
+              if (results.status === 'processing') {
+                // For large files being processed in background
+                toast({
+                  title: "Processamento Iniciado",
+                  description: `Arquivo com ${results.total} registros está sendo processado em segundo plano. Por favor, aguarde alguns minutos e recarregue a página.`,
+                });
+                // Don't refresh immediately for background processing
+                setActiveTab("list");
+              } else {
+                // For normal processing
+                fetchBens();
+                setActiveTab("list");
+                toast({
+                  title: "Upload concluído",
+                  description: `${results.successful || 0} bens importados com sucesso.`,
+                });
+              }
             }}
           />
         </TabsContent>
