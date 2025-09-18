@@ -18,8 +18,28 @@ import {
   TrendingUp,
   AlertTriangle
 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Relatorios() {
+  const { isAdmin } = useAuth();
+
+  // Check if user is admin
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-xl text-destructive">Acesso Negado</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground text-center">
+              Você não tem permissão para acessar esta página. Esta área é restrita a administradores.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
   const relatorios = [
     {
       id: 1,

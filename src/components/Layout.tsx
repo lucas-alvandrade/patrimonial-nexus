@@ -19,14 +19,13 @@ import { useAuth } from "@/hooks/useAuth";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
-  { name: "Bens", href: "/bens", icon: Package },
-  { name: "Ambientes", href: "/ambientes", icon: Building2 },
-  { name: "Usuários", href: "/usuarios", icon: Users },
-  { name: "Alocações", href: "/alocacoes", icon: MapPin },
-  { name: "Relatórios", href: "/relatorios", icon: BarChart3 },
 ];
 
 const adminNavigation = [
+  { name: "Bens", href: "/bens", icon: Package },
+  { name: "Ambientes", href: "/ambientes", icon: Building2 },
+  { name: "Usuários", href: "/usuarios", icon: Users },
+  { name: "Relatórios", href: "/relatorios", icon: BarChart3 },
   { name: "Configurações", href: "/configuracoes", icon: Settings },
 ];
 
