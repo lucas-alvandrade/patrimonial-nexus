@@ -171,49 +171,123 @@ async function processAmbientes(supabase: any, data: CSVRow[]) {
 
 async function processBens(supabase: any, data: CSVRow[]) {
   const results = [];
+  const BATCH_SIZE = 100; // Process in batches of 100
+  
+  console.log(`Processing ${data.length} records in batches of ${BATCH_SIZE}`);
 
-  for (const row of data) {
-    try {
-      const bem = {
-        numero_patrimonio: row.NUMERO || row.numero || row.Numero || row.numero_patrimonio || row.patrimonio || row.number || '',
-        descricao: row.DESCRICAO || row.descricao || row.Descricao || row.description || row.desc || '',
-        carga_atual: row['CARGA ATUAL'] || row.carga_atual || row['Carga Atual'] || row.carga || row.cargo || '',
-        setor_responsavel: row['SETOR DO RESPONSÁVEL'] || row['SETOR RESPONSÁVEL'] || row.setor_responsavel || row['Setor Responsável'] || row.setor || row.responsavel || '',
-        valor: parseFloat(row.VALOR || row.valor || row.Valor || row.value || '0') || 0
-      };
+  for (let i = 0; i < data.length; i += BATCH_SIZE) {
+    const batch = data.slice(i, i + BATCH_SIZE);
+    const batchResults = [];
+    
+    console.log(`Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(data.length / BATCH_SIZE)}`);
+    
+    // Prepare batch data
+    const bensToInsert = [];
+    
+    for (const row of batch) {
+      try {
+        const bem = {
+          numero_patrimonio: row.NUMERO || row.numero || row.Numero || row.numero_patrimonio || row.patrimonio || row.number || '',
+          descricao: row.DESCRICAO || row.descricao || row.Descricao || row.description || row.desc || '',
+          carga_atual: row['CARGA ATUAL'] || row.carga_atual || row['Carga Atual'] || row.carga || row.cargo || '',
+          setor_responsavel: row['SETOR DO RESPONSÁVEL'] || row['SETOR RESPONSÁVEL'] || row.setor_responsavel || row['Setor Responsável'] || row.setor || row.responsavel || '',
+          valor: parseFloat(row.VALOR || row.valor || row.Valor || row.value || '0') || 0
+        };
 
-      if (!bem.numero_patrimonio) {
-        results.push({
-          success: false,
-          error: 'Número do patrimônio é obrigatório',
-          row: row
-        });
-        continue;
-      }
+        if (!bem.numero_patrimonio) {
+          batchResults.push({
+            success: false,
+            error: 'Número do patrimônio é obrigatório',
+            row: row
+          });
+          continue;
+        }
 
-      const { error } = await supabase
-        .from('bens')
-        .insert(bem);
-
-      if (error) {
-        results.push({
+        bensToInsert.push(bem);
+      } catch (error) {
+        batchResults.push({
           success: false,
           error: error.message,
           row: row
         });
-      } else {
-        results.push({
-          success: true,
-          row: row
-        });
       }
-    } catch (error) {
-      results.push({
-        success: false,
-        error: error.message,
-        row: row
-      });
     }
+    
+    // Bulk insert for this batch
+    if (bensToInsert.length > 0) {
+      try {
+        const { data: insertedData, error } = await supabase
+          .from('bens')
+          .insert(bensToInsert);
+
+        if (error) {
+          // If bulk insert fails, try individual inserts for this batch
+          console.log(`Bulk insert failed for batch, trying individual inserts: ${error.message}`);
+          for (let j = 0; j < bensToInsert.length; j++) {
+            try {
+              const { error: individualError } = await supabase
+                .from('bens')
+                .insert(bensToInsert[j]);
+              
+              if (individualError) {
+                batchResults.push({
+                  success: false,
+                  error: individualError.message,
+                  row: batch[batchResults.length + j]
+                });
+              } else {
+                batchResults.push({
+                  success: true,
+                  row: batch[batchResults.length + j]
+                });
+              }
+            } catch (individualError) {
+              batchResults.push({
+                success: false,
+                error: individualError.message,
+                row: batch[batchResults.length + j]
+              });
+            }
+          }
+        } else {
+          // Bulk insert succeeded
+          for (let j = 0; j < bensToInsert.length; j++) {
+            batchResults.push({
+              success: true,
+              row: batch[batchResults.length + j]
+            });
+          }
+        }
+      } catch (error) {
+        // Fallback to individual inserts
+        for (let j = 0; j < bensToInsert.length; j++) {
+          try {
+            const { error: individualError } = await supabase
+              .from('bens')
+              .insert(bensToInsert[j]);
+            
+            batchResults.push({
+              success: !individualError,
+              error: individualError?.message,
+              row: batch[batchResults.length + j]
+            });
+          } catch (individualError) {
+            batchResults.push({
+              success: false,
+              error: individualError.message,
+              row: batch[batchResults.length + j]
+            });
+          }
+        }
+      }
+    }
+    
+    results.push(...batchResults);
+    
+    // Log progress
+    const successCount = results.filter(r => r.success).length;
+    const errorCount = results.filter(r => !r.success).length;
+    console.log(`Progress: ${results.length}/${data.length} processed, ${successCount} successful, ${errorCount} errors`);
   }
 
   return results;
