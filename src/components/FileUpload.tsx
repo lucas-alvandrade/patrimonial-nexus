@@ -18,8 +18,58 @@ const FileUpload = ({ onUploadComplete }: FileUploadProps) => {
   const [uploadType, setUploadType] = useState<string>("");
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [processId, setProcessId] = useState<string | null>(null);
+  const [processingStatus, setProcessingStatus] = useState<any>(null);
   const [uploadResults, setUploadResults] = useState<any>(null);
   const [error, setError] = useState("");
+
+  const pollProgress = async (processId: string) => {
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch(`https://bqwaasdjpxlucgsknryp.supabase.co/functions/v1/process-file-upload/status?id=${processId}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJxd2Fhc2RqcHhsdWNnc2tucnlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc2OTQ0NDksImV4cCI6MjA3MzI3MDQ0OX0.7edknT33F4_EOQXU3-PlbBqmt6G1TDXaDA8EkiUas6s`,
+          }
+        });
+
+        if (response.ok) {
+          const status = await response.json();
+          setProcessingStatus(status);
+          
+          // Calculate progress percentage
+          const progressPercent = Math.round((status.processed / status.total) * 100);
+          setUploadProgress(progressPercent);
+
+          if (status.status === 'completed' || status.status === 'error') {
+            clearInterval(interval);
+            setIsUploading(false);
+            
+            if (status.status === 'completed') {
+              setUploadResults({
+                total: status.total,
+                successful: status.successful,
+                errors: status.errors,
+                duplicates: status.duplicates
+              });
+              onUploadComplete?.({
+                total: status.total,
+                successful: status.successful,
+                errors: status.errors,
+                duplicates: status.duplicates
+              });
+            } else {
+              setError('Erro durante o processamento dos dados.');
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error polling progress:', error);
+      }
+    }, 1000); // Poll every second
+
+    return interval;
+  };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -29,6 +79,8 @@ const FileUpload = ({ onUploadComplete }: FileUploadProps) => {
         setSelectedFile(file);
         setError("");
         setUploadResults(null);
+        setProcessingStatus(null);
+        setUploadProgress(0);
       } else {
         setError("Apenas arquivos CSV e XLSX são suportados");
         setSelectedFile(null);
@@ -69,8 +121,8 @@ const FileUpload = ({ onUploadComplete }: FileUploadProps) => {
       const fileContent = await processFile(selectedFile);
       const fileType = selectedFile.name.split('.').pop()?.toLowerCase();
 
-      // Step 2: Uploading to server (60% progress)
-      setUploadProgress(60);
+      // Step 2: Uploading to server (40% progress)
+      setUploadProgress(40);
       const { data, error } = await supabase.functions.invoke('process-file-upload', {
         body: {
           fileContent,
@@ -83,12 +135,10 @@ const FileUpload = ({ onUploadComplete }: FileUploadProps) => {
         throw new Error(error.message);
       }
 
-      // Step 3: Processing complete (100% progress)
-      setUploadProgress(100);
-
-      if (data?.success) {
-        setUploadResults(data.results);
-        onUploadComplete?.(data.results);
+      if (data?.success && data?.processId) {
+        setProcessId(data.processId);
+        // Start polling for progress
+        pollProgress(data.processId);
       } else {
         throw new Error(data?.error || 'Erro durante o processamento');
       }
@@ -97,7 +147,6 @@ const FileUpload = ({ onUploadComplete }: FileUploadProps) => {
       console.error('Upload error:', err);
       setError(err instanceof Error ? err.message : 'Erro durante o upload');
       setUploadProgress(0);
-    } finally {
       setIsUploading(false);
     }
   };
@@ -108,6 +157,8 @@ const FileUpload = ({ onUploadComplete }: FileUploadProps) => {
     setUploadResults(null);
     setError("");
     setUploadProgress(0);
+    setProcessId(null);
+    setProcessingStatus(null);
   };
 
   return (
@@ -181,9 +232,9 @@ const FileUpload = ({ onUploadComplete }: FileUploadProps) => {
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
                   <strong>Formato esperado para Bens:</strong><br />
-                  Colunas: numero_patrimonio, descricao, condicao<br />
-                  Exemplo: "PAT001", "Mesa de escritório", "bom"<br />
-                  Condição deve ser: "bom" ou "inservível"
+                  Colunas: numero_patrimonio, descricao, valor<br />
+                  Exemplo: "PAT001", "Mesa de escritório", "500.00"<br />
+                  <strong>Nota:</strong> Números duplicados serão ignorados automaticamente.
                 </AlertDescription>
               </Alert>
             )}
@@ -195,17 +246,38 @@ const FileUpload = ({ onUploadComplete }: FileUploadProps) => {
             )}
 
             {isUploading && (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div className="flex justify-between text-sm">
-                  <span>Progresso do Upload</span>
+                  <span>Progresso do Processamento</span>
                   <span>{uploadProgress}%</span>
                 </div>
                 <Progress value={uploadProgress} className="w-full" />
-                <p className="text-sm text-muted-foreground">
-                  {uploadProgress <= 20 && "Processando arquivo..."}
-                  {uploadProgress > 20 && uploadProgress <= 60 && "Enviando dados..."}
-                  {uploadProgress > 60 && uploadProgress < 100 && "Salvando registros..."}
-                  {uploadProgress === 100 && "Concluído!"}
+                
+                {processingStatus && (
+                  <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                    <div>
+                      <div className="font-medium text-foreground">{processingStatus.processed}</div>
+                      <div className="text-muted-foreground">Processados</div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-success">{processingStatus.successful}</div>
+                      <div className="text-muted-foreground">Sucessos</div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-destructive">{processingStatus.errors}</div>
+                      <div className="text-muted-foreground">Erros</div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-warning">{processingStatus.duplicates}</div>
+                      <div className="text-muted-foreground">Duplicados</div>
+                    </div>
+                  </div>
+                )}
+                
+                <p className="text-sm text-muted-foreground text-center">
+                  {uploadProgress <= 40 && "Enviando arquivo..."}
+                  {uploadProgress > 40 && uploadProgress < 100 && processingStatus && `Processando registros (${processingStatus.processed}/${processingStatus.total})`}
+                  {uploadProgress === 100 && "Processamento concluído!"}
                 </p>
               </div>
             )}
@@ -235,7 +307,7 @@ const FileUpload = ({ onUploadComplete }: FileUploadProps) => {
               <span className="font-medium">Upload Concluído</span>
             </div>
 
-            <div className="grid grid-cols-3 gap-4 text-center">
+            <div className="grid grid-cols-4 gap-4 text-center">
               <div>
                 <div className="text-2xl font-bold">{uploadResults.total}</div>
                 <div className="text-sm text-muted-foreground">Total</div>
@@ -248,6 +320,10 @@ const FileUpload = ({ onUploadComplete }: FileUploadProps) => {
                 <div className="text-2xl font-bold text-red-600">{uploadResults.errors}</div>
                 <div className="text-sm text-muted-foreground">Erros</div>
               </div>
+              <div>
+                <div className="text-2xl font-bold text-yellow-600">{uploadResults.duplicates || 0}</div>
+                <div className="text-sm text-muted-foreground">Duplicados</div>
+              </div>
             </div>
 
             <Progress 
@@ -259,7 +335,16 @@ const FileUpload = ({ onUploadComplete }: FileUploadProps) => {
               <Alert variant="destructive">
                 <AlertDescription>
                   {uploadResults.errors} registros não puderam ser importados. 
+                  {uploadResults.duplicates > 0 && ` ${uploadResults.duplicates} eram duplicados e foram ignorados.`}
                   Verifique se os dados estão no formato correto.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {uploadResults.duplicates > 0 && uploadResults.errors === uploadResults.duplicates && (
+              <Alert>
+                <AlertDescription>
+                  {uploadResults.duplicates} registros duplicados foram ignorados para evitar conflitos.
                 </AlertDescription>
               </Alert>
             )}

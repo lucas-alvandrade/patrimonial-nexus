@@ -10,10 +10,47 @@ interface CSVRow {
   [key: string]: string;
 }
 
+interface ProcessingStatus {
+  id: string;
+  total: number;
+  processed: number;
+  successful: number;
+  errors: number;
+  status: 'processing' | 'completed' | 'error';
+  duplicates: number;
+}
+
+// In-memory storage for processing status
+const processingStatus = new Map<string, ProcessingStatus>();
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  const url = new URL(req.url);
+  
+  // Handle status check requests
+  if (url.pathname === '/status' && req.method === 'GET') {
+    const processId = url.searchParams.get('id');
+    if (!processId || !processingStatus.has(processId)) {
+      return new Response(
+        JSON.stringify({ error: 'Process not found' }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    const status = processingStatus.get(processId)!;
+    return new Response(
+      JSON.stringify(status),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
 
   try {
@@ -51,58 +88,39 @@ serve(async (req) => {
 
     console.log(`Parsed ${data.length} rows from file`);
 
-    // For large files, process in background
-    if (data.length > 1000) {
-      // Start background processing
-      EdgeRuntime.waitUntil(processLargeFile(supabase, data, uploadType));
-      
-      // Return immediate response
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: 'File processing started in background',
-          results: {
-            total: data.length,
-            status: 'processing',
-            message: 'Large file is being processed. Please check back in a few minutes.'
-          }
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    // Generate unique process ID
+    const processId = crypto.randomUUID();
+
+    // Initialize processing status
+    processingStatus.set(processId, {
+      id: processId,
+      total: data.length,
+      processed: 0,
+      successful: 0,
+      errors: 0,
+      duplicates: 0,
+      status: 'processing'
+    });
+
+    // For any size file, process in background to allow real-time progress
+    EdgeRuntime.waitUntil(processFileWithProgress(supabase, data, uploadType, processId));
+    
+    // Return immediate response with process ID
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'File processing started',
+        processId: processId,
+        results: {
+          total: data.length,
+          status: 'processing',
+          message: 'Processing started. You can track progress in real-time.'
         }
-      );
-    } else {
-      // Process small files immediately
-      let insertResults;
-      
-      if (uploadType === 'ambientes') {
-        insertResults = await processAmbientes(supabase, data);
-      } else if (uploadType === 'bens') {
-        insertResults = await processBens(supabase, data);
-      } else {
-        throw new Error('Unsupported upload type');
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
-
-      const successCount = insertResults.filter(r => r.success).length;
-      const errorCount = insertResults.filter(r => !r.success).length;
-
-      console.log(`Processing complete: ${successCount} successful, ${errorCount} errors`);
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          results: {
-            total: data.length,
-            successful: successCount,
-            errors: errorCount,
-            details: insertResults.slice(0, 10) // Only return first 10 for large datasets
-          }
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
+    );
 
   } catch (error) {
     console.error('File processing error:', error);
@@ -190,15 +208,26 @@ async function processAmbientes(supabase: any, data: CSVRow[]) {
   return results;
 }
 
-async function processBens(supabase: any, data: CSVRow[]) {
-  const results = [];
+async function processBensWithProgress(supabase: any, data: CSVRow[], processId: string) {
+  const status = processingStatus.get(processId)!;
   const BATCH_SIZE = 100; // Process in batches of 100
   
   console.log(`Processing ${data.length} records in batches of ${BATCH_SIZE}`);
+  
+  // First, get existing patrimônio numbers to check for duplicates
+  const { data: existingBens, error: fetchError } = await supabase
+    .from('bens')
+    .select('numero_patrimonio');
+  
+  if (fetchError) {
+    console.error('Error fetching existing bens:', fetchError);
+  }
+  
+  const existingNumbers = new Set(existingBens?.map(bem => bem.numero_patrimonio) || []);
+  console.log(`Found ${existingNumbers.size} existing patrimônio numbers`);
 
   for (let i = 0; i < data.length; i += BATCH_SIZE) {
     const batch = data.slice(i, i + BATCH_SIZE);
-    const batchResults = [];
     
     console.log(`Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(data.length / BATCH_SIZE)}`);
     
@@ -212,131 +241,187 @@ async function processBens(supabase: any, data: CSVRow[]) {
           descricao: row.DESCRICAO || row.descricao || row.Descricao || row.description || row.desc || '',
           carga_atual: row['CARGA ATUAL'] || row.carga_atual || row['Carga Atual'] || row.carga || row.cargo || '',
           setor_responsavel: row['SETOR DO RESPONSÁVEL'] || row['SETOR RESPONSÁVEL'] || row.setor_responsavel || row['Setor Responsável'] || row.setor || row.responsavel || '',
-          valor: parseFloat(row.VALOR || row.valor || row.Valor || row.value || '0') || 0
+          valor: parseFloat(row.VALOR || row.valor || row.Valor || row.value || '0') || 0,
+          condicao: 'bom' // Default condition
         };
 
         if (!bem.numero_patrimonio) {
-          batchResults.push({
-            success: false,
-            error: 'Número do patrimônio é obrigatório',
-            row: row
-          });
+          status.errors++;
+          status.processed++;
+          continue;
+        }
+
+        // Check for duplicates
+        if (existingNumbers.has(bem.numero_patrimonio)) {
+          status.duplicates++;
+          status.errors++;
+          status.processed++;
           continue;
         }
 
         bensToInsert.push(bem);
+        existingNumbers.add(bem.numero_patrimonio); // Add to set to prevent duplicates within the same batch
       } catch (error) {
-        batchResults.push({
-          success: false,
-          error: error.message,
-          row: row
-        });
+        status.errors++;
+        status.processed++;
       }
     }
     
     // Bulk insert for this batch
     if (bensToInsert.length > 0) {
       try {
-        const { data: insertedData, error } = await supabase
+        const { error } = await supabase
           .from('bens')
           .insert(bensToInsert);
 
         if (error) {
           // If bulk insert fails, try individual inserts for this batch
           console.log(`Bulk insert failed for batch, trying individual inserts: ${error.message}`);
-          for (let j = 0; j < bensToInsert.length; j++) {
+          for (const bem of bensToInsert) {
             try {
               const { error: individualError } = await supabase
                 .from('bens')
-                .insert(bensToInsert[j]);
+                .insert(bem);
               
               if (individualError) {
-                batchResults.push({
-                  success: false,
-                  error: individualError.message,
-                  row: batch[batchResults.length + j]
-                });
+                status.errors++;
               } else {
-                batchResults.push({
-                  success: true,
-                  row: batch[batchResults.length + j]
-                });
+                status.successful++;
               }
+              status.processed++;
             } catch (individualError) {
-              batchResults.push({
-                success: false,
-                error: individualError.message,
-                row: batch[batchResults.length + j]
-              });
+              status.errors++;
+              status.processed++;
             }
           }
         } else {
           // Bulk insert succeeded
-          for (let j = 0; j < bensToInsert.length; j++) {
-            batchResults.push({
-              success: true,
-              row: batch[batchResults.length + j]
-            });
-          }
+          status.successful += bensToInsert.length;
+          status.processed += bensToInsert.length;
         }
       } catch (error) {
         // Fallback to individual inserts
-        for (let j = 0; j < bensToInsert.length; j++) {
+        for (const bem of bensToInsert) {
           try {
             const { error: individualError } = await supabase
               .from('bens')
-              .insert(bensToInsert[j]);
+              .insert(bem);
             
-            batchResults.push({
-              success: !individualError,
-              error: individualError?.message,
-              row: batch[batchResults.length + j]
-            });
+            if (individualError) {
+              status.errors++;
+            } else {
+              status.successful++;
+            }
+            status.processed++;
           } catch (individualError) {
-            batchResults.push({
-              success: false,
-              error: individualError.message,
-              row: batch[batchResults.length + j]
-            });
+            status.errors++;
+            status.processed++;
           }
         }
       }
+    } else {
+      // Update processed count for skipped items in this batch
+      status.processed += batch.length - bensToInsert.length;
     }
     
-    results.push(...batchResults);
+    // Update status
+    processingStatus.set(processId, status);
     
     // Log progress
-    const successCount = results.filter(r => r.success).length;
-    const errorCount = results.filter(r => !r.success).length;
-    console.log(`Progress: ${results.length}/${data.length} processed, ${successCount} successful, ${errorCount} errors`);
+    console.log(`Progress: ${status.processed}/${status.total} processed, ${status.successful} successful, ${status.errors} errors, ${status.duplicates} duplicates`);
+    
+    // Add small delay to prevent overwhelming the database
+    if (i + BATCH_SIZE < data.length) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
   }
 
-  return results;
+  // Mark as completed
+  status.status = 'completed';
+  processingStatus.set(processId, status);
+  
+  return status;
 }
 
-// Background processing function for large files
-async function processLargeFile(supabase: any, data: CSVRow[], uploadType: string) {
+// Background processing function with real-time progress
+async function processFileWithProgress(supabase: any, data: CSVRow[], uploadType: string, processId: string) {
   try {
-    console.log(`Starting background processing of ${data.length} records for ${uploadType}`);
-    
-    let insertResults;
+    console.log(`Starting processing of ${data.length} records for ${uploadType} with process ID ${processId}`);
     
     if (uploadType === 'ambientes') {
-      insertResults = await processAmbientes(supabase, data);
+      await processAmbientesWithProgress(supabase, data, processId);
     } else if (uploadType === 'bens') {
-      insertResults = await processBens(supabase, data);
+      await processBensWithProgress(supabase, data, processId);
     } else {
+      const status = processingStatus.get(processId)!;
+      status.status = 'error';
+      processingStatus.set(processId, status);
       throw new Error('Unsupported upload type');
     }
 
-    const successCount = insertResults.filter(r => r.success).length;
-    const errorCount = insertResults.filter(r => !r.success).length;
-
-    console.log(`Background processing complete: ${successCount} successful, ${errorCount} errors`);
+    console.log(`Processing complete for process ID ${processId}`);
+    
+    // Keep status for 10 minutes after completion
+    setTimeout(() => {
+      processingStatus.delete(processId);
+    }, 10 * 60 * 1000);
     
   } catch (error) {
-    console.error('Background processing error:', error);
+    console.error('Processing error:', error);
+    const status = processingStatus.get(processId);
+    if (status) {
+      status.status = 'error';
+      processingStatus.set(processId, status);
+    }
   }
+}
+
+async function processAmbientesWithProgress(supabase: any, data: CSVRow[], processId: string) {
+  const status = processingStatus.get(processId)!;
+
+  for (let i = 0; i < data.length; i++) {
+    const row = data[i];
+    try {
+      const ambiente = {
+        nome: row.nome || row.Nome || row.name || '',
+        bloco: row.bloco || row.Bloco || row.block || '',
+        descricao: row.descricao || row.Descrição || row.description || row.desc || ''
+      };
+
+      if (!ambiente.nome) {
+        status.errors++;
+        status.processed++;
+        continue;
+      }
+
+      const { error } = await supabase
+        .from('ambientes')
+        .insert(ambiente);
+
+      if (error) {
+        status.errors++;
+      } else {
+        status.successful++;
+      }
+      status.processed++;
+
+    } catch (error) {
+      status.errors++;
+      status.processed++;
+    }
+
+    // Update status every 10 records
+    if (i % 10 === 0) {
+      processingStatus.set(processId, status);
+      console.log(`Ambientes progress: ${status.processed}/${status.total} processed`);
+    }
+  }
+
+  // Mark as completed
+  status.status = 'completed';
+  processingStatus.set(processId, status);
+  
+  return status;
 }
 
 // Handle function shutdown
