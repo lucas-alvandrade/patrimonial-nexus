@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,11 +24,60 @@ import {
 } from "lucide-react";
 import FileUpload from "@/components/FileUpload";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Ambientes() {
   const { isAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("list");
+  const [ambientes, setAmbientes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchAmbientes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('ambientes')
+        .select('*')
+        .order('nome', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching ambientes:', error);
+        return;
+      }
+
+      setAmbientes(data || []);
+    } catch (error) {
+      console.error('Error fetching ambientes:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAdmin) {
+      fetchAmbientes();
+
+      // Set up real-time subscription
+      const channel = supabase
+        .channel('ambientes-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'ambientes'
+          },
+          () => {
+            fetchAmbientes();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [isAdmin]);
 
   // Check if user is admin
   if (!isAdmin) {
@@ -48,11 +97,9 @@ export default function Ambientes() {
     );
   }
 
-  const ambientes = [];
-
   const filteredAmbientes = ambientes.filter(ambiente =>
-    ambiente.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    ambiente.descricao.toLowerCase().includes(searchTerm.toLowerCase())
+    ambiente.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    ambiente.descricao?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -176,7 +223,8 @@ export default function Ambientes() {
           <FileUpload 
             onUploadComplete={(results) => {
               console.log("Upload completed:", results);
-              // Optionally switch back to list tab and refresh data
+              // Refresh data and switch back to list tab
+              fetchAmbientes();
               setActiveTab("list");
             }}
           />
