@@ -46,6 +46,7 @@ export type Database = {
       }
       ambientes: {
         Row: {
+          bloco: string | null
           created_at: string
           descricao: string | null
           id: number
@@ -53,6 +54,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          bloco?: string | null
           created_at?: string
           descricao?: string | null
           id?: never
@@ -60,6 +62,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          bloco?: string | null
           created_at?: string
           descricao?: string | null
           id?: never

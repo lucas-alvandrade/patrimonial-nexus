@@ -37,7 +37,7 @@ export default function Dashboard() {
       </div>
 
       {/* Content Grid */}
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6">
         {/* Recent Activities */}
         <Card>
           <CardHeader>
@@ -86,34 +86,6 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Quick Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="w-5 h-5 text-primary" />
-              Ações Rápidas
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Button variant="outline" className="w-full justify-start">
-              <Package className="w-4 h-4 mr-3" />
-              Cadastrar Novo Bem
-            </Button>
-            <Button variant="outline" className="w-full justify-start">
-              <Building2 className="w-4 h-4 mr-3" />
-              Criar Ambiente
-            </Button>
-            <Button variant="outline" className="w-full justify-start">
-              <Users className="w-4 h-4 mr-3" />
-              Adicionar Usuário
-            </Button>
-            <Button variant="outline" className="w-full justify-start">
-              <MapPin className="w-4 h-4 mr-3" />
-              Alocar Bem
-            </Button>
           </CardContent>
         </Card>
       </div>

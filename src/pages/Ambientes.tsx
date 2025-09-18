@@ -55,10 +55,6 @@ export default function Ambientes() {
     ambiente.descricao.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalBensGeral = ambientes.reduce((sum, amb) => sum + amb.totalBens, 0);
-  const totalAlocados = ambientes.reduce((sum, amb) => sum + amb.bensAlocados, 0);
-  const percentualOcupacao = Math.round((totalAlocados / totalBensGeral) * 100);
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -107,7 +103,7 @@ export default function Ambientes() {
           </Card>
 
           {/* Statistics */}
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-1">
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
@@ -121,45 +117,6 @@ export default function Ambientes() {
                 </div>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Capacidade Total</p>
-                    <p className="text-2xl font-bold text-foreground">{totalBensGeral}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-secondary-light rounded-lg flex items-center justify-center">
-                    <Package className="w-6 h-6 text-secondary-foreground" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Bens Alocados</p>
-                    <p className="text-2xl font-bold text-success">{totalAlocados}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-success-light rounded-lg flex items-center justify-center">
-                    <Users className="w-6 h-6 text-success" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Taxa Ocupação</p>
-                    <p className="text-2xl font-bold text-warning">{percentualOcupacao}%</p>
-                  </div>
-                  <div className="w-12 h-12 bg-warning-light rounded-lg flex items-center justify-center">
-                    <Building2 className="w-6 h-6 text-warning" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
 
           {/* Ambientes Table */}
@@ -169,21 +126,17 @@ export default function Ambientes() {
             </CardHeader>
             <CardContent>
               <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Descrição</TableHead>
-                      <TableHead>Capacidade</TableHead>
-                      <TableHead>Bens Alocados</TableHead>
-                      <TableHead>Ocupação</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredAmbientes.map((ambiente) => {
-                      const ocupacao = Math.round((ambiente.bensAlocados / ambiente.totalBens) * 100);
-                      return (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Bloco</TableHead>
+                        <TableHead>Descrição</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredAmbientes.map((ambiente) => (
                         <TableRow key={ambiente.id} className="hover:bg-muted/50 transition-smooth">
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-2">
@@ -191,25 +144,11 @@ export default function Ambientes() {
                               {ambiente.nome}
                             </div>
                           </TableCell>
+                          <TableCell className="font-medium">
+                            {ambiente.bloco || '-'}
+                          </TableCell>
                           <TableCell className="max-w-xs truncate">
                             {ambiente.descricao}
-                          </TableCell>
-                          <TableCell>{ambiente.totalBens}</TableCell>
-                          <TableCell>{ambiente.bensAlocados}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
-                                <div 
-                                  className={`h-full rounded-full ${
-                                    ocupacao >= 90 ? 'bg-destructive' :
-                                    ocupacao >= 70 ? 'bg-warning' :
-                                    'bg-success'
-                                  }`}
-                                  style={{ width: `${ocupacao}%` }}
-                                />
-                              </div>
-                              <span className="text-sm text-muted-foreground">{ocupacao}%</span>
-                            </div>
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
@@ -225,10 +164,9 @@ export default function Ambientes() {
                             </div>
                           </TableCell>
                         </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                      ))}
+                    </TableBody>
+                  </Table>
               </div>
             </CardContent>
           </Card>

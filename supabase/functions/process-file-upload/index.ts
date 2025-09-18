@@ -128,6 +128,7 @@ async function processAmbientes(supabase: any, data: CSVRow[]) {
     try {
       const ambiente = {
         nome: row.nome || row.name || '',
+        bloco: row.bloco || row.block || '',
         descricao: row.descricao || row.description || row.desc || ''
       };
 

@@ -143,63 +143,6 @@ export default function Relatorios() {
         </CardContent>
       </Card>
 
-      {/* Relatórios Recentes */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-primary" />
-            Relatórios Recentes
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-success-light rounded-lg flex items-center justify-center">
-                  <Package className="w-5 h-5 text-success" />
-                </div>
-                <div>
-                  <h4 className="font-medium text-foreground">Inventário Completo - Janeiro 2024</h4>
-                  <p className="text-sm text-muted-foreground">Gerado em 15/01/2024 às 14:30</p>
-                </div>
-              </div>
-              <Button variant="ghost" size="sm">
-                <Download className="w-4 h-4" />
-              </Button>
-            </div>
-            
-            <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-warning-light rounded-lg flex items-center justify-center">
-                  <AlertTriangle className="w-5 h-5 text-warning" />
-                </div>
-                <div>
-                  <h4 className="font-medium text-foreground">Bens Inservíveis - Semana 02</h4>
-                  <p className="text-sm text-muted-foreground">Gerado em 08/01/2024 às 09:15</p>
-                </div>
-              </div>
-              <Button variant="ghost" size="sm">
-                <Download className="w-4 h-4" />
-              </Button>
-            </div>
-            
-            <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-primary-light rounded-lg flex items-center justify-center">
-                  <Building2 className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <h4 className="font-medium text-foreground">Relatório por Ambientes - Dezembro 2023</h4>
-                  <p className="text-sm text-muted-foreground">Gerado em 29/12/2023 às 16:45</p>
-                </div>
-              </div>
-              <Button variant="ghost" size="sm">
-                <Download className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

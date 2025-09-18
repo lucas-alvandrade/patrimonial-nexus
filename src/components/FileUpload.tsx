@@ -161,8 +161,8 @@ const FileUpload = ({ onUploadComplete }: FileUploadProps) => {
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
                   <strong>Formato esperado para Ambientes:</strong><br />
-                  Colunas: nome, descricao<br />
-                  Exemplo: "Sala 101", "Sala de reuniões do primeiro andar"
+                  Colunas: nome, bloco, descricao<br />
+                  Exemplo: "A 107", "A", "Sala de reuniões do bloco A"
                 </AlertDescription>
               </Alert>
             )}

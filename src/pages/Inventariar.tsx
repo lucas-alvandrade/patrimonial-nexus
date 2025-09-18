@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 interface Ambiente {
   id: number;
   nome: string;
+  bloco?: string;
   descricao?: string;
 }
 
@@ -44,8 +45,14 @@ export default function Inventariar() {
   };
 
   const getAmbientesByBloco = (bloco: string) => {
-    return ambientes.filter(ambiente => {
-      const nome = ambiente.nome.toLowerCase();
+    return ambientes.filter(amb => {
+      // Use the bloco field if available, otherwise fall back to name prefix logic
+      if (amb.bloco) {
+        return amb.bloco.toUpperCase() === bloco.toUpperCase() || 
+               (bloco === 'Outros' && !['A', 'B', 'C', 'D'].includes(amb.bloco.toUpperCase()));
+      }
+      // Fallback to name logic for existing data
+      const nome = amb.nome.toLowerCase();
       switch (bloco) {
         case 'A':
           return nome.includes('bloco a') || nome.startsWith('a-') || nome.includes(' a ');
