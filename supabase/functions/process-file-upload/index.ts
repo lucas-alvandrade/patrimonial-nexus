@@ -175,11 +175,11 @@ async function processBens(supabase: any, data: CSVRow[]) {
   for (const row of data) {
     try {
       const bem = {
-        numero_patrimonio: row.numero || row.Numero || row.numero_patrimonio || row.patrimonio || row.number || '',
-        descricao: row.descricao || row.Descricao || row.description || row.desc || '',
-        carga_atual: row.carga_atual || row['Carga Atual'] || row.carga || row.cargo || '',
-        setor_responsavel: row.setor_responsavel || row['Setor Responsável'] || row.setor || row.responsavel || '',
-        valor: parseFloat(row.valor || row.Valor || row.value || '0') || 0
+        numero_patrimonio: row.NUMERO || row.numero || row.Numero || row.numero_patrimonio || row.patrimonio || row.number || '',
+        descricao: row.DESCRICAO || row.descricao || row.Descricao || row.description || row.desc || '',
+        carga_atual: row['CARGA ATUAL'] || row.carga_atual || row['Carga Atual'] || row.carga || row.cargo || '',
+        setor_responsavel: row['SETOR DO RESPONSÁVEL'] || row['SETOR RESPONSÁVEL'] || row.setor_responsavel || row['Setor Responsável'] || row.setor || row.responsavel || '',
+        valor: parseFloat(row.VALOR || row.valor || row.Valor || row.value || '0') || 0
       };
 
       if (!bem.numero_patrimonio) {
