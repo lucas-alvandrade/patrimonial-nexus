@@ -17,6 +17,7 @@ const FileUpload = ({ onUploadComplete }: FileUploadProps) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadType, setUploadType] = useState<string>("");
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadResults, setUploadResults] = useState<any>(null);
   const [error, setError] = useState("");
 
@@ -60,13 +61,16 @@ const FileUpload = ({ onUploadComplete }: FileUploadProps) => {
 
     setIsUploading(true);
     setError("");
+    setUploadProgress(0);
 
     try {
-      // Process file content
+      // Step 1: Processing file (20% progress)
+      setUploadProgress(20);
       const fileContent = await processFile(selectedFile);
       const fileType = selectedFile.name.split('.').pop()?.toLowerCase();
 
-      // Call edge function to process upload
+      // Step 2: Uploading to server (60% progress)
+      setUploadProgress(60);
       const { data, error } = await supabase.functions.invoke('process-file-upload', {
         body: {
           fileContent,
@@ -79,6 +83,9 @@ const FileUpload = ({ onUploadComplete }: FileUploadProps) => {
         throw new Error(error.message);
       }
 
+      // Step 3: Processing complete (100% progress)
+      setUploadProgress(100);
+
       if (data?.success) {
         setUploadResults(data.results);
         onUploadComplete?.(data.results);
@@ -89,6 +96,7 @@ const FileUpload = ({ onUploadComplete }: FileUploadProps) => {
     } catch (err) {
       console.error('Upload error:', err);
       setError(err instanceof Error ? err.message : 'Erro durante o upload');
+      setUploadProgress(0);
     } finally {
       setIsUploading(false);
     }
@@ -99,6 +107,7 @@ const FileUpload = ({ onUploadComplete }: FileUploadProps) => {
     setUploadType("");
     setUploadResults(null);
     setError("");
+    setUploadProgress(0);
   };
 
   return (
@@ -183,6 +192,22 @@ const FileUpload = ({ onUploadComplete }: FileUploadProps) => {
               <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
+            )}
+
+            {isUploading && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Progresso do Upload</span>
+                  <span>{uploadProgress}%</span>
+                </div>
+                <Progress value={uploadProgress} className="w-full" />
+                <p className="text-sm text-muted-foreground">
+                  {uploadProgress <= 20 && "Processando arquivo..."}
+                  {uploadProgress > 20 && uploadProgress <= 60 && "Enviando dados..."}
+                  {uploadProgress > 60 && uploadProgress < 100 && "Salvando registros..."}
+                  {uploadProgress === 100 && "Concluído!"}
+                </p>
+              </div>
             )}
 
             <Button
