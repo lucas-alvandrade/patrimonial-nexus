@@ -48,51 +48,7 @@ export default function Ambientes() {
     );
   }
 
-  // Mock data - em um app real, viria do banco de dados
-  const ambientes = [
-    {
-      id: 1,
-      nome: "Sala 101",
-      descricao: "Sala de reuniões pequena - Térreo",
-      totalBens: 12,
-      bensAlocados: 10
-    },
-    {
-      id: 2,
-      nome: "Sala 102",
-      descricao: "Escritório administrativo - Térreo",
-      totalBens: 25,
-      bensAlocados: 23
-    },
-    {
-      id: 3,
-      nome: "Sala 103",
-      descricao: "Sala de desenvolvimento - 1º andar",
-      totalBens: 35,
-      bensAlocados: 35
-    },
-    {
-      id: 4,
-      nome: "Depósito",
-      descricao: "Depósito geral de equipamentos",
-      totalBens: 8,
-      bensAlocados: 5
-    },
-    {
-      id: 5,
-      nome: "Auditório",
-      descricao: "Auditório principal para eventos",
-      totalBens: 45,
-      bensAlocados: 42
-    },
-    {
-      id: 6,
-      nome: "Laboratório",
-      descricao: "Laboratório de informática",
-      totalBens: 30,
-      bensAlocados: 28
-    }
-  ];
+  const ambientes = [];
 
   const filteredAmbientes = ambientes.filter(ambiente =>
     ambiente.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||

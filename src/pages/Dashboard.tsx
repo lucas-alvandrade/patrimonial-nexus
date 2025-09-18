@@ -13,67 +13,9 @@ import {
 } from "lucide-react";
 
 export default function Dashboard() {
-  // Mock data - in a real app, this would come from your database
-  const stats = [
-    {
-      title: "Total de Bens",
-      value: "1,247",
-      icon: Package,
-      description: "Itens cadastrados",
-      trend: { value: 12, isPositive: true }
-    },
-    {
-      title: "Ambientes",
-      value: "34",
-      icon: Building2,
-      description: "Locais ativos",
-      trend: { value: 2, isPositive: true }
-    },
-    {
-      title: "Usuários",
-      value: "89",
-      icon: Users,
-      description: "Colaboradores",
-      trend: { value: 5, isPositive: true }
-    },
-    {
-      title: "Bens Inservíveis",
-      value: "23",
-      icon: AlertCircle,
-      description: "Necessitam atenção",
-      trend: { value: -8, isPositive: false }
-    }
-  ];
+  const stats = [];
 
-  const recentActivities = [
-    {
-      id: 1,
-      action: "Bem alocado",
-      item: "Notebook Dell Latitude 5520",
-      user: "João Silva",
-      environment: "Sala 101",
-      time: "2 horas atrás",
-      type: "allocation"
-    },
-    {
-      id: 2,
-      action: "Novo bem cadastrado",
-      item: "Monitor LG 24' 4K",
-      user: "Maria Santos",
-      environment: "-",
-      time: "5 horas atrás",
-      type: "creation"
-    },
-    {
-      id: 3,
-      action: "Status alterado",
-      item: "Impressora HP LaserJet Pro",
-      user: "Carlos Oliveira",
-      environment: "Sala 203",
-      time: "1 dia atrás",
-      type: "update"
-    }
-  ];
+  const recentActivities = [];
 
   return (
     <div className="space-y-6">
@@ -85,10 +27,6 @@ export default function Dashboard() {
             Visão geral do sistema de patrimônio
           </p>
         </div>
-        <Button className="shadow-primary">
-          <Plus className="w-4 h-4 mr-2" />
-          Novo Bem
-        </Button>
       </div>
 
       {/* Stats Grid */}

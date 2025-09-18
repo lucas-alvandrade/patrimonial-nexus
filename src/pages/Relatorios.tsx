@@ -40,87 +40,9 @@ export default function Relatorios() {
       </div>
     );
   }
-  const relatorios = [
-    {
-      id: 1,
-      titulo: "Inventário Completo",
-      descricao: "Lista completa de todos os bens cadastrados no sistema",
-      icon: Package,
-      tipo: "inventario",
-      frequencia: "Mensal"
-    },
-    {
-      id: 2,
-      titulo: "Relatório por Ambientes",
-      descricao: "Distribuição de bens por ambiente e taxa de ocupação",
-      icon: Building2,
-      tipo: "ambiente",
-      frequencia: "Semanal"
-    },
-    {
-      id: 3,
-      titulo: "Responsabilidades por Usuário",
-      descricao: "Bens alocados para cada usuário do sistema",
-      icon: Users,
-      tipo: "usuario",
-      frequencia: "Mensal"
-    },
-    {
-      id: 4,
-      titulo: "Bens Inservíveis",
-      descricao: "Lista de bens que necessitam manutenção ou substituição",
-      icon: AlertTriangle,
-      tipo: "manutencao",
-      frequencia: "Diário"
-    },
-    {
-      id: 5,
-      titulo: "Movimentações do Período",
-      descricao: "Histórico de alocações e transferências realizadas",
-      icon: TrendingUp,
-      tipo: "movimentacao",
-      frequencia: "Semanal"
-    },
-    {
-      id: 6,
-      titulo: "Auditoria Patrimonial",
-      descricao: "Relatório completo para auditoria externa",
-      icon: FileText,
-      tipo: "auditoria",
-      frequencia: "Anual"
-    }
-  ];
+  const relatorios = [];
 
-  const dashboardData = [
-    {
-      titulo: "Bens Cadastrados",
-      valor: "1,247",
-      variacao: "+12%",
-      tipo: "positivo",
-      periodo: "vs mês anterior"
-    },
-    {
-      titulo: "Taxa de Utilização",
-      valor: "89%",
-      variacao: "+5%",
-      tipo: "positivo",
-      periodo: "vs mês anterior"
-    },
-    {
-      titulo: "Bens Inservíveis",
-      valor: "23",
-      variacao: "-8%",
-      tipo: "positivo",
-      periodo: "vs mês anterior"
-    },
-    {
-      titulo: "Ambientes Ativos",
-      valor: "34",
-      variacao: "+2",
-      tipo: "neutro",
-      periodo: "novos este mês"
-    }
-  ];
+  const dashboardData = [];
 
   return (
     <div className="space-y-6">

@@ -57,49 +57,7 @@ export default function Bens() {
     );
   }
 
-  // Mock data - em um app real, viria do banco de dados
-  const bens = [
-    {
-      id: 1,
-      numero_patrimonio: "PAT001234",
-      descricao: "Notebook Dell Latitude 5520 - Intel i7 8GB RAM",
-      condicao: "bom",
-      ambiente: "Sala 101",
-      usuario: "João Silva"
-    },
-    {
-      id: 2,
-      numero_patrimonio: "PAT001235",
-      descricao: "Monitor LG 24' 4K UltraHD",
-      condicao: "bom",
-      ambiente: "Sala 102",
-      usuario: "Maria Santos"
-    },
-    {
-      id: 3,
-      numero_patrimonio: "PAT001236",
-      descricao: "Impressora HP LaserJet Pro M404dn",
-      condicao: "inservível",
-      ambiente: "Depósito",
-      usuario: null
-    },
-    {
-      id: 4,
-      numero_patrimonio: "PAT001237",
-      descricao: "Cadeira Ergonômica Presidente",
-      condicao: "bom",
-      ambiente: "Sala 103",
-      usuario: "Carlos Oliveira"
-    },
-    {
-      id: 5,
-      numero_patrimonio: "PAT001238",
-      descricao: "Mesa de Escritório 120x60cm",
-      condicao: "bom",
-      ambiente: "Sala 104",
-      usuario: "Ana Costa"
-    }
-  ];
+  const bens = [];
 
   const filteredBens = bens.filter(bem => {
     const matchesSearch = bem.descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
