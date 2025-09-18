@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,16 +28,21 @@ import {
   Trash2,
   Eye,
   MapPin,
-  Upload
+  Upload,
+  DollarSign
 } from "lucide-react";
 import FileUpload from "@/components/FileUpload";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Bens() {
   const { isAdmin } = useAuth();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCondicao, setSelectedCondicao] = useState("all");
   const [activeTab, setActiveTab] = useState("list");
+  const [bens, setBens] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // Check if user is admin
   if (!isAdmin) {
@@ -57,14 +62,44 @@ export default function Bens() {
     );
   }
 
-  const bens = [];
+  useEffect(() => {
+    fetchBens();
+  }, []);
+
+  const fetchBens = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('bens')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching bens:', error);
+        toast({
+          title: "Erro",
+          description: "Erro ao buscar bens. Tente novamente.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setBens(data || []);
+    } catch (error) {
+      console.error('Error fetching bens:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredBens = bens.filter(bem => {
-    const matchesSearch = bem.descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         bem.numero_patrimonio.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCondicao = selectedCondicao === "all" || bem.condicao === selectedCondicao;
-    return matchesSearch && matchesCondicao;
+    const matchesSearch = bem.descricao?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         bem.numero_patrimonio?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         bem.setor_responsavel?.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch;
   });
+
+  const valorTotal = bens.reduce((total, bem) => total + (parseFloat(bem.valor) || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -101,35 +136,24 @@ export default function Bens() {
               <CardTitle className="text-lg">Filtros</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                    <Input
-                      placeholder="Buscar por descrição ou número patrimônio..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-                <Select value={selectedCondicao} onValueChange={setSelectedCondicao}>
-                  <SelectTrigger className="w-full sm:w-48">
-                    <Filter className="w-4 h-4 mr-2" />
-                    <SelectValue placeholder="Condição" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas condições</SelectItem>
-                    <SelectItem value="bom">Bom</SelectItem>
-                    <SelectItem value="inservível">Inservível</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                <div className="flex flex-col sm:flex-row gap-4">
+                 <div className="flex-1">
+                   <div className="relative">
+                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                     <Input
+                       placeholder="Buscar por descrição, número ou setor responsável..."
+                       value={searchTerm}
+                       onChange={(e) => setSearchTerm(e.target.value)}
+                       className="pl-10"
+                     />
+                   </div>
+                 </div>
+               </div>
             </CardContent>
           </Card>
 
           {/* Statistics */}
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2">
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
@@ -147,24 +171,16 @@ export default function Bens() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Em Bom Estado</p>
-                    <p className="text-2xl font-bold text-success">{bens.filter(b => b.condicao === 'bom').length}</p>
+                    <p className="text-sm font-medium text-muted-foreground">Valor Total dos Bens</p>
+                    <p className="text-2xl font-bold text-success">
+                      {new Intl.NumberFormat('pt-BR', {
+                        style: 'currency',
+                        currency: 'BRL'
+                      }).format(valorTotal)}
+                    </p>
                   </div>
                   <div className="w-12 h-12 bg-success-light rounded-lg flex items-center justify-center">
-                    <Package className="w-6 h-6 text-success" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Inservíveis</p>
-                    <p className="text-2xl font-bold text-destructive">{bens.filter(b => b.condicao === 'inservível').length}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-destructive-light rounded-lg flex items-center justify-center">
-                    <Package className="w-6 h-6 text-destructive" />
+                    <DollarSign className="w-6 h-6 text-success" />
                   </div>
                 </div>
               </CardContent>
@@ -181,52 +197,60 @@ export default function Bens() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Patrimônio</TableHead>
+                      <TableHead>Número</TableHead>
                       <TableHead>Descrição</TableHead>
-                      <TableHead>Condição</TableHead>
-                      <TableHead>Ambiente</TableHead>
-                      <TableHead>Responsável</TableHead>
+                      <TableHead>Carga Atual</TableHead>
+                      <TableHead>Setor Responsável</TableHead>
+                      <TableHead className="text-right">Valor</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredBens.map((bem) => (
-                      <TableRow key={bem.id} className="hover:bg-muted/50 transition-smooth">
-                        <TableCell className="font-medium">
-                          {bem.numero_patrimonio}
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8">
+                          Carregando...
                         </TableCell>
-                        <TableCell>{bem.descricao}</TableCell>
-                        <TableCell>
-                          <Badge variant={bem.condicao === 'bom' ? 'default' : 'destructive'}>
-                            {bem.condicao === 'bom' ? 'Bom' : 'Inservível'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <MapPin className="w-4 h-4 text-muted-foreground" />
-                            {bem.ambiente}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {bem.usuario || (
-                            <span className="text-muted-foreground">Não alocado</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button variant="ghost" size="sm">
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm">
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm">
-                              <Trash2 className="w-4 h-4 text-destructive" />
-                            </Button>
+                      </TableRow>
+                    ) : filteredBens.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8">
+                          <div className="text-muted-foreground">
+                            {searchTerm ? 'Nenhum bem encontrado com os filtros aplicados.' : 'Nenhum bem cadastrado.'}
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      filteredBens.map((bem) => (
+                        <TableRow key={bem.id} className="hover:bg-muted/50 transition-smooth">
+                          <TableCell className="font-medium">
+                            {bem.numero_patrimonio}
+                          </TableCell>
+                          <TableCell>{bem.descricao || '-'}</TableCell>
+                          <TableCell>{bem.carga_atual || '-'}</TableCell>
+                          <TableCell>{bem.setor_responsavel || '-'}</TableCell>
+                          <TableCell className="text-right font-medium">
+                            {bem.valor ? new Intl.NumberFormat('pt-BR', {
+                              style: 'currency',
+                              currency: 'BRL'
+                            }).format(parseFloat(bem.valor)) : '-'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button variant="ghost" size="sm">
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm">
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm">
+                                <Trash2 className="w-4 h-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </div>
@@ -238,8 +262,13 @@ export default function Bens() {
           <FileUpload 
             onUploadComplete={(results) => {
               console.log("Upload completed:", results);
-              // Optionally switch back to list tab and refresh data
+              // Refresh the bens list and switch back to list tab
+              fetchBens();
               setActiveTab("list");
+              toast({
+                title: "Upload concluído",
+                description: `${results.successful || 0} bens importados com sucesso.`,
+              });
             }}
           />
         </TabsContent>

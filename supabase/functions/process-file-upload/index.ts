@@ -175,9 +175,11 @@ async function processBens(supabase: any, data: CSVRow[]) {
   for (const row of data) {
     try {
       const bem = {
-        numero_patrimonio: row.numero_patrimonio || row.patrimonio || row.number || '',
-        descricao: row.descricao || row.description || row.desc || '',
-        condicao: (row.condicao || row.condition || 'bom').toLowerCase()
+        numero_patrimonio: row.numero || row.Numero || row.numero_patrimonio || row.patrimonio || row.number || '',
+        descricao: row.descricao || row.Descricao || row.description || row.desc || '',
+        carga_atual: row.carga_atual || row['Carga Atual'] || row.carga || row.cargo || '',
+        setor_responsavel: row.setor_responsavel || row['Setor Responsável'] || row.setor || row.responsavel || '',
+        valor: parseFloat(row.valor || row.Valor || row.value || '0') || 0
       };
 
       if (!bem.numero_patrimonio) {
@@ -187,10 +189,6 @@ async function processBens(supabase: any, data: CSVRow[]) {
           row: row
         });
         continue;
-      }
-
-      if (!['bom', 'inservível'].includes(bem.condicao)) {
-        bem.condicao = 'bom'; // Default value
       }
 
       const { error } = await supabase

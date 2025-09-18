@@ -73,28 +73,37 @@ export type Database = {
       }
       bens: {
         Row: {
+          carga_atual: string | null
           condicao: string
           created_at: string
           descricao: string | null
           id: number
           numero_patrimonio: string
+          setor_responsavel: string | null
           updated_at: string
+          valor: number | null
         }
         Insert: {
+          carga_atual?: string | null
           condicao: string
           created_at?: string
           descricao?: string | null
           id?: never
           numero_patrimonio: string
+          setor_responsavel?: string | null
           updated_at?: string
+          valor?: number | null
         }
         Update: {
+          carga_atual?: string | null
           condicao?: string
           created_at?: string
           descricao?: string | null
           id?: never
           numero_patrimonio?: string
+          setor_responsavel?: string | null
           updated_at?: string
+          valor?: number | null
         }
         Relationships: []
       }
