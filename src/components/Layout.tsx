@@ -19,6 +19,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
+  { name: "Inventariar", href: "/inventariar", icon: Package },
 ];
 
 const adminNavigation = [
