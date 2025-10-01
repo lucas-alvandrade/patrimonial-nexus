@@ -33,7 +33,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Building2, Plus, Trash2, ArrowLeft, CheckCircle, Unlock } from "lucide-react";
+import { Building2, Plus, Trash2, ArrowLeft, Save, CheckCircle, Unlock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -307,6 +307,80 @@ export default function InventariarAmbiente() {
       toast({
         title: "Erro",
         description: "Erro ao adicionar item",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSalvar = async () => {
+    if (items.length === 0) {
+      toast({
+        title: "Atenção",
+        description: "Adicione itens ao inventário antes de salvar",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Buscar o usuário atual
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
+      // Buscar o ID do usuário na tabela usuarios
+      const { data: userData, error: userError } = await supabase
+        .from('usuarios')
+        .select('id')
+        .eq('ldap_id', user.user_metadata.ldap_id)
+        .single();
+
+      if (userError) throw userError;
+
+      // Para cada item do inventário, relacionar o bem com o ambiente
+      for (const item of items) {
+        // Buscar o bem pelo número de patrimônio
+        const { data: bemData, error: bemError } = await supabase
+          .from('bens')
+          .select('id')
+          .eq('numero_patrimonio', item.patrimonio)
+          .maybeSingle();
+
+        if (bemError) throw bemError;
+
+        if (bemData) {
+          // Verificar se já existe uma relação
+          const { data: existingRelation } = await supabase
+            .from('ambiente_bens')
+            .select('id')
+            .eq('ambiente_id', Number(id))
+            .eq('bem_id', bemData.id)
+            .maybeSingle();
+
+          // Se não existe, criar a relação
+          if (!existingRelation) {
+            const { error: insertError } = await supabase
+              .from('ambiente_bens')
+              .insert({
+                ambiente_id: Number(id),
+                bem_id: bemData.id,
+                usuario_id: userData.id,
+                data_registro: new Date().toISOString()
+              });
+
+            if (insertError) throw insertError;
+          }
+        }
+      }
+
+      toast({
+        title: "Sucesso",
+        description: `Inventário do ${ambiente?.nome} salvo com sucesso!`,
+      });
+    } catch (error) {
+      console.error('Error saving inventory:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao salvar inventário",
         variant: "destructive",
       });
     }
@@ -624,6 +698,10 @@ export default function InventariarAmbiente() {
           <Button variant="outline" onClick={handleVoltar}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Voltar
+          </Button>
+          <Button onClick={handleSalvar} disabled={isConcluido || items.length === 0}>
+            <Save className="h-4 w-4 mr-2" />
+            Salvar
           </Button>
           <Button 
             variant="success" 
