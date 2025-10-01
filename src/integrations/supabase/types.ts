@@ -107,6 +107,89 @@ export type Database = {
         }
         Relationships: []
       }
+      inventario_itens: {
+        Row: {
+          created_at: string
+          descricao: string
+          id: number
+          inventario_id: number
+          patrimonio: string
+          situacao: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          descricao: string
+          id?: number
+          inventario_id: number
+          patrimonio: string
+          situacao: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          descricao?: string
+          id?: number
+          inventario_id?: number
+          patrimonio?: string
+          situacao?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventario_itens_inventario_id_fkey"
+            columns: ["inventario_id"]
+            isOneToOne: false
+            referencedRelation: "inventarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventarios: {
+        Row: {
+          ambiente_id: number
+          concluido_em: string | null
+          concluido_por: number | null
+          created_at: string
+          id: number
+          status: Database["public"]["Enums"]["status_inventario"]
+          updated_at: string
+        }
+        Insert: {
+          ambiente_id: number
+          concluido_em?: string | null
+          concluido_por?: number | null
+          created_at?: string
+          id?: number
+          status?: Database["public"]["Enums"]["status_inventario"]
+          updated_at?: string
+        }
+        Update: {
+          ambiente_id?: number
+          concluido_em?: string | null
+          concluido_por?: number | null
+          created_at?: string
+          id?: number
+          status?: Database["public"]["Enums"]["status_inventario"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventarios_ambiente_id_fkey"
+            columns: ["ambiente_id"]
+            isOneToOne: true
+            referencedRelation: "ambientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventarios_concluido_por_fkey"
+            columns: ["concluido_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       patrimonio: {
         Row: {
           condicao: string
@@ -182,6 +265,7 @@ export type Database = {
       }
     }
     Enums: {
+      status_inventario: "nao_iniciado" | "em_andamento" | "concluido"
       user_role: "admin" | "user"
     }
     CompositeTypes: {
@@ -310,6 +394,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      status_inventario: ["nao_iniciado", "em_andamento", "concluido"],
       user_role: ["admin", "user"],
     },
   },

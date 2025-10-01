@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import {
   Table,
   TableBody,
@@ -32,7 +33,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Building2, Plus, Trash2, ArrowLeft, Save } from "lucide-react";
+import { Building2, Plus, Trash2, ArrowLeft, Save, CheckCircle, Unlock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -66,6 +67,11 @@ export default function InventariarAmbiente() {
   const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
   const [descricoes, setDescricoes] = useState<string[]>([]);
   const [openDescricao, setOpenDescricao] = useState(false);
+  const [inventarioId, setInventarioId] = useState<number | null>(null);
+  const [isConcluido, setIsConcluido] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showConcluirDialog, setShowConcluirDialog] = useState(false);
+  const [showDesbloquearDialog, setShowDesbloquearDialog] = useState(false);
   
   const patrimonioRef = useRef<HTMLInputElement>(null);
   const descricaoRef = useRef<HTMLInputElement>(null);
@@ -75,7 +81,75 @@ export default function InventariarAmbiente() {
       fetchAmbiente();
     }
     fetchDescricoes();
+    checkAdminStatus();
+    if (id) {
+      fetchOrCreateInventario();
+    }
   }, [id, ambiente]);
+
+  const checkAdminStatus = async () => {
+    try {
+      const { data, error } = await supabase.rpc('is_admin');
+      if (error) throw error;
+      setIsAdmin(data || false);
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+      setIsAdmin(false);
+    }
+  };
+
+  const fetchOrCreateInventario = async () => {
+    try {
+      // Buscar inventário existente
+      let { data: inventario, error } = await supabase
+        .from('inventarios')
+        .select('*')
+        .eq('ambiente_id', Number(id))
+        .maybeSingle();
+
+      if (error) throw error;
+
+      // Se não existe, criar um novo
+      if (!inventario) {
+        const { data: newInventario, error: createError } = await supabase
+          .from('inventarios')
+          .insert({ ambiente_id: Number(id) })
+          .select()
+          .single();
+
+        if (createError) throw createError;
+        inventario = newInventario;
+      }
+
+      setInventarioId(inventario.id);
+      setIsConcluido(inventario.status === 'concluido');
+
+      // Buscar itens do inventário
+      const { data: itensData, error: itensError } = await supabase
+        .from('inventario_itens')
+        .select('*')
+        .eq('inventario_id', inventario.id);
+
+      if (itensError) throw itensError;
+
+      if (itensData && itensData.length > 0) {
+        const mappedItems = itensData.map(item => ({
+          id: item.id.toString(),
+          patrimonio: item.patrimonio,
+          descricao: item.descricao,
+          situacao: item.situacao as 'Bom' | 'Inservível'
+        }));
+        setItems(mappedItems);
+      }
+    } catch (error) {
+      console.error('Error fetching inventario:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar inventário",
+        variant: "destructive",
+      });
+    }
+  };
 
   const fetchDescricoes = async () => {
     try {
@@ -166,7 +240,7 @@ export default function InventariarAmbiente() {
     }
   };
 
-  const handleCadastrar = () => {
+  const handleCadastrar = async () => {
     if (!currentItem.patrimonio.trim() || !currentItem.descricao.trim()) {
       toast({
         title: "Atenção",
@@ -176,25 +250,69 @@ export default function InventariarAmbiente() {
       return;
     }
 
-    const newItem: InventarioItem = {
-      id: Math.random().toString(36).substr(2, 9),
-      ...currentItem
-    };
+    if (isConcluido) {
+      toast({
+        title: "Atenção",
+        description: "Este inventário já foi concluído",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    setItems([...items, newItem]);
-    setCurrentItem({
-      patrimonio: '',
-      descricao: '',
-      situacao: 'Bom'
-    });
+    try {
+      // Salvar no banco de dados
+      const { data: itemData, error: itemError } = await supabase
+        .from('inventario_itens')
+        .insert({
+          inventario_id: inventarioId,
+          patrimonio: currentItem.patrimonio,
+          descricao: currentItem.descricao,
+          situacao: currentItem.situacao
+        })
+        .select()
+        .single();
 
-    toast({
-      title: "Sucesso",
-      description: "Item adicionado ao inventário",
-    });
+      if (itemError) throw itemError;
+
+      // Atualizar status para "em_andamento" se for o primeiro item
+      if (items.length === 0) {
+        const { error: statusError } = await supabase
+          .from('inventarios')
+          .update({ status: 'em_andamento' })
+          .eq('id', inventarioId);
+
+        if (statusError) throw statusError;
+      }
+
+      const newItem: InventarioItem = {
+        id: itemData.id.toString(),
+        patrimonio: currentItem.patrimonio,
+        descricao: currentItem.descricao,
+        situacao: currentItem.situacao
+      };
+
+      setItems([...items, newItem]);
+      setCurrentItem({
+        patrimonio: '',
+        descricao: '',
+        situacao: 'Bom'
+      });
+
+      toast({
+        title: "Sucesso",
+        description: "Item adicionado ao inventário",
+      });
+    } catch (error) {
+      console.error('Error adding item:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao adicionar item",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleExcluir = () => {
+  const handleExcluir = async () => {
     if (selectedItemIndex === null) {
       toast({
         title: "Atenção",
@@ -204,32 +322,130 @@ export default function InventariarAmbiente() {
       return;
     }
 
-    const newItems = items.filter((_, index) => index !== selectedItemIndex);
-    setItems(newItems);
-    setSelectedItemIndex(null);
+    if (isConcluido) {
+      toast({
+        title: "Atenção",
+        description: "Este inventário já foi concluído",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    toast({
-      title: "Sucesso",
-      description: "Item removido do inventário",
-    });
+    try {
+      const itemToDelete = items[selectedItemIndex];
+      
+      // Deletar do banco de dados
+      const { error } = await supabase
+        .from('inventario_itens')
+        .delete()
+        .eq('id', Number(itemToDelete.id));
+
+      if (error) throw error;
+
+      const newItems = items.filter((_, index) => index !== selectedItemIndex);
+      setItems(newItems);
+      setSelectedItemIndex(null);
+
+      toast({
+        title: "Sucesso",
+        description: "Item removido do inventário",
+      });
+    } catch (error) {
+      console.error('Error deleting item:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao remover item",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSalvar = async () => {
     try {
-      // Aqui você pode implementar a lógica para salvar no banco de dados
-      // Por exemplo, salvar em uma tabela de inventário
       toast({
         title: "Sucesso",
         description: `Inventário do ${ambiente?.nome} salvo com sucesso!`,
       });
-      
-      // Opcional: limpar a lista após salvar
-      setItems([]);
     } catch (error) {
       console.error('Error saving inventory:', error);
       toast({
         title: "Erro",
         description: "Erro ao salvar inventário",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleConcluir = async () => {
+    try {
+      // Buscar o usuário atual
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
+      // Buscar o ID do usuário na tabela usuarios
+      const { data: userData, error: userError } = await supabase
+        .from('usuarios')
+        .select('id')
+        .eq('ldap_id', user.user_metadata.ldap_id)
+        .single();
+
+      if (userError) throw userError;
+
+      // Atualizar status para concluído
+      const { error } = await supabase
+        .from('inventarios')
+        .update({ 
+          status: 'concluido',
+          concluido_por: userData.id,
+          concluido_em: new Date().toISOString()
+        })
+        .eq('id', inventarioId);
+
+      if (error) throw error;
+
+      setIsConcluido(true);
+      setShowConcluirDialog(false);
+
+      toast({
+        title: "Sucesso",
+        description: "Inventário concluído com sucesso!",
+      });
+    } catch (error) {
+      console.error('Error concluding inventory:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao concluir inventário",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDesbloquear = async () => {
+    try {
+      // Atualizar status para em_andamento
+      const { error } = await supabase
+        .from('inventarios')
+        .update({ 
+          status: 'em_andamento',
+          concluido_por: null,
+          concluido_em: null
+        })
+        .eq('id', inventarioId);
+
+      if (error) throw error;
+
+      setIsConcluido(false);
+      setShowDesbloquearDialog(false);
+
+      toast({
+        title: "Sucesso",
+        description: "Inventário desbloqueado com sucesso!",
+      });
+    } catch (error) {
+      console.error('Error unlocking inventory:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao desbloquear inventário",
         variant: "destructive",
       });
     }
@@ -282,6 +498,7 @@ export default function InventariarAmbiente() {
                   onChange={(e) => setCurrentItem({...currentItem, patrimonio: e.target.value})}
                   onKeyDown={handlePatrimonioKeyDown}
                   placeholder="Número do patrimônio"
+                  disabled={isConcluido}
                 />
               </div>
               <div>
@@ -310,6 +527,7 @@ export default function InventariarAmbiente() {
                     }}
                     placeholder="Descrição do item"
                     autoComplete="off"
+                    disabled={isConcluido}
                   />
                   {openDescricao && (
                     <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-[200px] overflow-auto">
@@ -342,6 +560,7 @@ export default function InventariarAmbiente() {
                   onValueChange={(value: 'Bom' | 'Inservível') => 
                     setCurrentItem({...currentItem, situacao: value})
                   }
+                  disabled={isConcluido}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -353,13 +572,13 @@ export default function InventariarAmbiente() {
                 </Select>
               </div>
               <div className="flex items-end gap-2">
-                <Button onClick={handleCadastrar} className="flex-1">
+                <Button onClick={handleCadastrar} className="flex-1" disabled={isConcluido}>
                   Cadastrar
                 </Button>
                 <Button 
                   variant="destructive" 
                   onClick={handleExcluir}
-                  disabled={selectedItemIndex === null}
+                  disabled={selectedItemIndex === null || isConcluido}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -425,7 +644,55 @@ export default function InventariarAmbiente() {
             <Save className="h-4 w-4 mr-2" />
             Salvar
           </Button>
+          <Button 
+            variant="success" 
+            onClick={() => setShowConcluirDialog(true)}
+            disabled={isConcluido || items.length === 0}
+          >
+            <CheckCircle className="h-4 w-4 mr-2" />
+            Concluir
+          </Button>
+          {isAdmin && (
+            <Button 
+              variant="destructive" 
+              onClick={() => setShowDesbloquearDialog(true)}
+              disabled={!isConcluido}
+            >
+              <Unlock className="h-4 w-4 mr-2" />
+              Desbloquear
+            </Button>
+          )}
         </div>
+
+        <AlertDialog open={showConcluirDialog} onOpenChange={setShowConcluirDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Concluir Inventário</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja concluir o inventário deste ambiente? Após concluído, não será mais possível adicionar novos itens.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConcluir}>Confirmar</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={showDesbloquearDialog} onOpenChange={setShowDesbloquearDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Desbloquear Inventário</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja desbloquear este inventário? Isso permitirá adicionar novos itens novamente.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDesbloquear}>Confirmar</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

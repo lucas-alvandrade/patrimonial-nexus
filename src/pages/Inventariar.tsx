@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building2, Package } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 interface Ambiente {
   id: number;
@@ -13,10 +14,17 @@ interface Ambiente {
   descricao?: string;
 }
 
+interface Inventario {
+  id: number;
+  ambiente_id: number;
+  status: 'nao_iniciado' | 'em_andamento' | 'concluido';
+}
+
 export default function Inventariar() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [ambientes, setAmbientes] = useState<Ambiente[]>([]);
+  const [inventarios, setInventarios] = useState<Inventario[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -32,6 +40,14 @@ export default function Inventariar() {
 
       if (error) throw error;
       setAmbientes(data || []);
+
+      // Buscar inventários
+      const { data: inventariosData, error: inventariosError } = await supabase
+        .from('inventarios')
+        .select('*');
+
+      if (inventariosError) throw inventariosError;
+      setInventarios(inventariosData || []);
     } catch (error) {
       console.error('Error fetching ambientes:', error);
       toast({
@@ -41,6 +57,24 @@ export default function Inventariar() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getAmbienteStatus = (ambienteId: number): 'nao_iniciado' | 'em_andamento' | 'concluido' => {
+    const inventario = inventarios.find(inv => inv.ambiente_id === ambienteId);
+    return inventario?.status || 'nao_iniciado';
+  };
+
+  const getStatusColor = (status: 'nao_iniciado' | 'em_andamento' | 'concluido'): string => {
+    switch (status) {
+      case 'nao_iniciado':
+        return 'bg-red-100 hover:bg-red-200 border-red-300';
+      case 'em_andamento':
+        return 'bg-yellow-100 hover:bg-yellow-200 border-yellow-300';
+      case 'concluido':
+        return 'bg-green-100 hover:bg-green-200 border-green-300';
+      default:
+        return 'bg-red-100 hover:bg-red-200 border-red-300';
     }
   };
 
@@ -90,26 +124,31 @@ export default function Inventariar() {
           <p className="text-muted-foreground">Nenhum ambiente encontrado neste bloco</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {ambientesBloco.map((ambiente) => (
-              <Button
-                key={ambiente.id}
-                variant="outline"
-                className="h-auto p-4 text-left justify-start"
-                onClick={() => handleAmbienteClick(ambiente)}
-              >
-                <div className="flex items-center gap-2 w-full">
-                  <Package className="h-4 w-4 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate">{ambiente.nome}</div>
-                    {ambiente.descricao && (
-                      <div className="text-sm text-muted-foreground truncate">
-                        {ambiente.descricao}
-                      </div>
-                    )}
+            {ambientesBloco.map((ambiente) => {
+              const status = getAmbienteStatus(ambiente.id);
+              const statusColor = getStatusColor(status);
+              
+              return (
+                <Button
+                  key={ambiente.id}
+                  variant="outline"
+                  className={cn("h-auto p-4 text-left justify-start", statusColor)}
+                  onClick={() => handleAmbienteClick(ambiente)}
+                >
+                  <div className="flex items-center gap-2 w-full">
+                    <Package className="h-4 w-4 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{ambiente.nome}</div>
+                      {ambiente.descricao && (
+                        <div className="text-sm text-muted-foreground truncate">
+                          {ambiente.descricao}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </Button>
-            ))}
+                </Button>
+              );
+            })}
           </div>
         )}
       </CardContent>
