@@ -241,6 +241,11 @@ export default function InventariarAmbiente() {
   };
 
   const handleCadastrar = async () => {
+    console.log('=== handleCadastrar iniciado ===');
+    console.log('currentItem:', currentItem);
+    console.log('inventarioId:', inventarioId);
+    console.log('isConcluido:', isConcluido);
+
     if (!currentItem.patrimonio.trim() || !currentItem.descricao.trim()) {
       toast({
         title: "Atenção",
@@ -259,7 +264,18 @@ export default function InventariarAmbiente() {
       return;
     }
 
+    if (!inventarioId) {
+      toast({
+        title: "Erro",
+        description: "Inventário não foi inicializado corretamente",
+        variant: "destructive",
+      });
+      console.error('inventarioId is null');
+      return;
+    }
+
     try {
+      console.log('Tentando inserir item no banco...');
       // Salvar no banco de dados
       const { data: itemData, error: itemError } = await supabase
         .from('inventario_itens')
@@ -271,6 +287,8 @@ export default function InventariarAmbiente() {
         })
         .select()
         .single();
+
+      console.log('Resultado da inserção:', { itemData, itemError });
 
       if (itemError) throw itemError;
 
@@ -302,6 +320,8 @@ export default function InventariarAmbiente() {
         title: "Sucesso",
         description: "Item adicionado ao inventário",
       });
+
+      console.log('Item cadastrado com sucesso:', newItem);
     } catch (error) {
       console.error('Error adding item:', error);
       toast({
