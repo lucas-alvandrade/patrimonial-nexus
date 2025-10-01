@@ -131,13 +131,18 @@ export default function InventariarAmbiente() {
   };
 
   const handlePatrimonioKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    console.log('Key pressed:', e.key, 'Patrimonio:', currentItem.patrimonio);
+    
     if (e.key === 'Tab' && currentItem.patrimonio.trim()) {
       e.preventDefault();
+      console.log('Tab pressed, searching for patrimonio:', currentItem.patrimonio.trim());
       
       const bem = await buscarBemPorPatrimonio(currentItem.patrimonio.trim());
+      console.log('Bem found:', bem);
       
       if (bem && bem.descricao) {
         // Bem encontrado - preencher descrição e cadastrar automaticamente
+        console.log('Adding item automatically');
         const newItem: InventarioItem = {
           id: Math.random().toString(36).substr(2, 9),
           patrimonio: currentItem.patrimonio,
@@ -158,10 +163,11 @@ export default function InventariarAmbiente() {
         });
         
         // Focar novamente no campo patrimônio para próxima entrada
-        setTimeout(() => patrimonioRef.current?.focus(), 0);
+        setTimeout(() => patrimonioRef.current?.focus(), 100);
       } else {
         // Bem não encontrado - mover para campo descrição
-        descricaoRef.current?.focus();
+        console.log('Bem not found, moving to description field');
+        setTimeout(() => descricaoRef.current?.focus(), 100);
       }
     }
   };
@@ -284,51 +290,54 @@ export default function InventariarAmbiente() {
                   placeholder="Número do patrimônio"
                 />
               </div>
-              <div>
+              <div className="relative">
                 <Label htmlFor="descricao">Descrição</Label>
-                <Popover open={openDescricao} onOpenChange={setOpenDescricao}>
-                  <PopoverTrigger asChild>
-                    <Input
-                      ref={descricaoRef}
-                      id="descricao"
-                      value={currentItem.descricao}
-                      onChange={(e) => {
-                        setCurrentItem({...currentItem, descricao: e.target.value});
+                <div className="relative">
+                  <Input
+                    ref={descricaoRef}
+                    id="descricao"
+                    value={currentItem.descricao}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setCurrentItem({...currentItem, descricao: value});
+                      setOpenDescricao(value.length > 0);
+                    }}
+                    onFocus={() => {
+                      if (currentItem.descricao.length > 0) {
                         setOpenDescricao(true);
-                      }}
-                      onFocus={() => setOpenDescricao(true)}
-                      placeholder="Descrição do item"
-                      autoComplete="off"
-                    />
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[300px] p-0" align="start">
-                    <Command>
-                      <CommandInput placeholder="Buscar descrição..." />
-                      <CommandList>
-                        <CommandEmpty>Nenhuma descrição encontrada.</CommandEmpty>
-                        <CommandGroup>
-                          {descricoes
-                            .filter(desc => 
-                              desc.toLowerCase().includes(currentItem.descricao.toLowerCase())
-                            )
-                            .slice(0, 10)
-                            .map((descricao) => (
-                              <CommandItem
-                                key={descricao}
-                                value={descricao}
-                                onSelect={() => {
-                                  setCurrentItem({...currentItem, descricao});
-                                  setOpenDescricao(false);
-                                }}
-                              >
-                                {descricao}
-                              </CommandItem>
-                            ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                      }
+                    }}
+                    onBlur={() => {
+                      setTimeout(() => setOpenDescricao(false), 200);
+                    }}
+                    placeholder="Descrição do item"
+                    autoComplete="off"
+                  />
+                  {openDescricao && descricoes.filter(desc => 
+                    desc.toLowerCase().includes(currentItem.descricao.toLowerCase())
+                  ).length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-[200px] overflow-auto">
+                      {descricoes
+                        .filter(desc => 
+                          desc.toLowerCase().includes(currentItem.descricao.toLowerCase())
+                        )
+                        .slice(0, 10)
+                        .map((descricao, index) => (
+                          <div
+                            key={index}
+                            className="px-3 py-2 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setCurrentItem({...currentItem, descricao});
+                              setOpenDescricao(false);
+                            }}
+                          >
+                            {descricao}
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
                 <Label htmlFor="situacao">Situação</Label>
