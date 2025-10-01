@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,9 +19,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Building2, Plus, Trash2, ArrowLeft, Save } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 interface InventarioItem {
   id?: string;
@@ -50,12 +64,35 @@ export default function InventariarAmbiente() {
     situacao: 'Bom'
   });
   const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
+  const [descricoes, setDescricoes] = useState<string[]>([]);
+  const [openDescricao, setOpenDescricao] = useState(false);
+  
+  const patrimonioRef = useRef<HTMLInputElement>(null);
+  const descricaoRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!ambiente && id) {
       fetchAmbiente();
     }
+    fetchDescricoes();
   }, [id, ambiente]);
+
+  const fetchDescricoes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('bens')
+        .select('descricao')
+        .order('descricao');
+
+      if (error) throw error;
+      
+      // Extrair descrições únicas
+      const uniqueDescricoes = [...new Set(data?.map(b => b.descricao).filter(Boolean) as string[])];
+      setDescricoes(uniqueDescricoes);
+    } catch (error) {
+      console.error('Error fetching descricoes:', error);
+    }
+  };
 
   const fetchAmbiente = async () => {
     try {
@@ -74,6 +111,58 @@ export default function InventariarAmbiente() {
         description: "Erro ao carregar ambiente",
         variant: "destructive",
       });
+    }
+  };
+
+  const buscarBemPorPatrimonio = async (numeroPatrimonio: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('bens')
+        .select('numero_patrimonio, descricao')
+        .eq('numero_patrimonio', numeroPatrimonio)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error fetching bem:', error);
+      return null;
+    }
+  };
+
+  const handlePatrimonioKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Tab' && currentItem.patrimonio.trim()) {
+      e.preventDefault();
+      
+      const bem = await buscarBemPorPatrimonio(currentItem.patrimonio.trim());
+      
+      if (bem && bem.descricao) {
+        // Bem encontrado - preencher descrição e cadastrar automaticamente
+        const newItem: InventarioItem = {
+          id: Math.random().toString(36).substr(2, 9),
+          patrimonio: currentItem.patrimonio,
+          descricao: bem.descricao,
+          situacao: currentItem.situacao
+        };
+        
+        setItems([...items, newItem]);
+        setCurrentItem({
+          patrimonio: '',
+          descricao: '',
+          situacao: 'Bom'
+        });
+        
+        toast({
+          title: "Sucesso",
+          description: "Item adicionado ao inventário",
+        });
+        
+        // Focar novamente no campo patrimônio para próxima entrada
+        setTimeout(() => patrimonioRef.current?.focus(), 0);
+      } else {
+        // Bem não encontrado - mover para campo descrição
+        descricaoRef.current?.focus();
+      }
     }
   };
 
@@ -187,20 +276,59 @@ export default function InventariarAmbiente() {
               <div>
                 <Label htmlFor="patrimonio">Patrimônio</Label>
                 <Input
+                  ref={patrimonioRef}
                   id="patrimonio"
                   value={currentItem.patrimonio}
                   onChange={(e) => setCurrentItem({...currentItem, patrimonio: e.target.value})}
+                  onKeyDown={handlePatrimonioKeyDown}
                   placeholder="Número do patrimônio"
                 />
               </div>
               <div>
                 <Label htmlFor="descricao">Descrição</Label>
-                <Input
-                  id="descricao"
-                  value={currentItem.descricao}
-                  onChange={(e) => setCurrentItem({...currentItem, descricao: e.target.value})}
-                  placeholder="Descrição do item"
-                />
+                <Popover open={openDescricao} onOpenChange={setOpenDescricao}>
+                  <PopoverTrigger asChild>
+                    <Input
+                      ref={descricaoRef}
+                      id="descricao"
+                      value={currentItem.descricao}
+                      onChange={(e) => {
+                        setCurrentItem({...currentItem, descricao: e.target.value});
+                        setOpenDescricao(true);
+                      }}
+                      onFocus={() => setOpenDescricao(true)}
+                      placeholder="Descrição do item"
+                      autoComplete="off"
+                    />
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[300px] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Buscar descrição..." />
+                      <CommandList>
+                        <CommandEmpty>Nenhuma descrição encontrada.</CommandEmpty>
+                        <CommandGroup>
+                          {descricoes
+                            .filter(desc => 
+                              desc.toLowerCase().includes(currentItem.descricao.toLowerCase())
+                            )
+                            .slice(0, 10)
+                            .map((descricao) => (
+                              <CommandItem
+                                key={descricao}
+                                value={descricao}
+                                onSelect={() => {
+                                  setCurrentItem({...currentItem, descricao});
+                                  setOpenDescricao(false);
+                                }}
+                              >
+                                {descricao}
+                              </CommandItem>
+                            ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
               <div>
                 <Label htmlFor="situacao">Situação</Label>
