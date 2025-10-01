@@ -131,18 +131,13 @@ export default function InventariarAmbiente() {
   };
 
   const handlePatrimonioKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
-    console.log('Key pressed:', e.key, 'Patrimonio:', currentItem.patrimonio);
-    
     if (e.key === 'Tab' && currentItem.patrimonio.trim()) {
       e.preventDefault();
-      console.log('Tab pressed, searching for patrimonio:', currentItem.patrimonio.trim());
       
       const bem = await buscarBemPorPatrimonio(currentItem.patrimonio.trim());
-      console.log('Bem found:', bem);
       
       if (bem && bem.descricao) {
         // Bem encontrado - preencher descrição e cadastrar automaticamente
-        console.log('Adding item automatically');
         const newItem: InventarioItem = {
           id: Math.random().toString(36).substr(2, 9),
           patrimonio: currentItem.patrimonio,
@@ -163,11 +158,10 @@ export default function InventariarAmbiente() {
         });
         
         // Focar novamente no campo patrimônio para próxima entrada
-        setTimeout(() => patrimonioRef.current?.focus(), 100);
+        setTimeout(() => patrimonioRef.current?.focus(), 0);
       } else {
         // Bem não encontrado - mover para campo descrição
-        console.log('Bem not found, moving to description field');
-        setTimeout(() => descricaoRef.current?.focus(), 100);
+        descricaoRef.current?.focus();
       }
     }
   };
@@ -290,7 +284,7 @@ export default function InventariarAmbiente() {
                   placeholder="Número do patrimônio"
                 />
               </div>
-              <div className="relative">
+              <div>
                 <Label htmlFor="descricao">Descrição</Label>
                 <div className="relative">
                   <Input
@@ -300,7 +294,11 @@ export default function InventariarAmbiente() {
                     onChange={(e) => {
                       const value = e.target.value;
                       setCurrentItem({...currentItem, descricao: value});
-                      setOpenDescricao(value.length > 0);
+                      if (value.length > 0) {
+                        setOpenDescricao(true);
+                      } else {
+                        setOpenDescricao(false);
+                      }
                     }}
                     onFocus={() => {
                       if (currentItem.descricao.length > 0) {
@@ -313,9 +311,7 @@ export default function InventariarAmbiente() {
                     placeholder="Descrição do item"
                     autoComplete="off"
                   />
-                  {openDescricao && descricoes.filter(desc => 
-                    desc.toLowerCase().includes(currentItem.descricao.toLowerCase())
-                  ).length > 0 && (
+                  {openDescricao && (
                     <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-[200px] overflow-auto">
                       {descricoes
                         .filter(desc => 
