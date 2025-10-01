@@ -211,28 +211,70 @@ export default function InventariarAmbiente() {
       const bem = await buscarBemPorPatrimonio(currentItem.patrimonio.trim());
       
       if (bem && bem.descricao) {
-        // Bem encontrado - preencher descrição e cadastrar automaticamente
-        const newItem: InventarioItem = {
-          id: Math.random().toString(36).substr(2, 9),
-          patrimonio: currentItem.patrimonio,
-          descricao: bem.descricao,
-          situacao: currentItem.situacao
-        };
-        
-        setItems([...items, newItem]);
-        setCurrentItem({
-          patrimonio: '',
-          descricao: '',
-          situacao: 'Bom'
-        });
-        
-        toast({
-          title: "Sucesso",
-          description: "Item adicionado ao inventário",
-        });
-        
-        // Focar novamente no campo patrimônio para próxima entrada
-        setTimeout(() => patrimonioRef.current?.focus(), 0);
+        // Bem encontrado - salvar no banco automaticamente
+        if (!inventarioId) {
+          toast({
+            title: "Erro",
+            description: "Inventário não foi inicializado corretamente",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        try {
+          // Salvar no banco de dados
+          const { data: itemData, error: itemError } = await supabase
+            .from('inventario_itens')
+            .insert({
+              inventario_id: inventarioId,
+              patrimonio: currentItem.patrimonio,
+              descricao: bem.descricao,
+              situacao: currentItem.situacao
+            })
+            .select()
+            .single();
+
+          if (itemError) throw itemError;
+
+          // Atualizar status para "em_andamento" se for o primeiro item
+          if (items.length === 0) {
+            const { error: statusError } = await supabase
+              .from('inventarios')
+              .update({ status: 'em_andamento' })
+              .eq('id', inventarioId);
+
+            if (statusError) throw statusError;
+          }
+
+          const newItem: InventarioItem = {
+            id: itemData.id.toString(),
+            patrimonio: currentItem.patrimonio,
+            descricao: bem.descricao,
+            situacao: currentItem.situacao
+          };
+
+          setItems([...items, newItem]);
+          setCurrentItem({
+            patrimonio: '',
+            descricao: '',
+            situacao: 'Bom'
+          });
+
+          toast({
+            title: "Sucesso",
+            description: "Item adicionado ao inventário",
+          });
+
+          // Focar novamente no campo patrimônio para próxima entrada
+          setTimeout(() => patrimonioRef.current?.focus(), 0);
+        } catch (error) {
+          console.error('Error adding item:', error);
+          toast({
+            title: "Erro",
+            description: "Erro ao adicionar item",
+            variant: "destructive",
+          });
+        }
       } else {
         // Bem não encontrado - mover para campo descrição
         descricaoRef.current?.focus();
