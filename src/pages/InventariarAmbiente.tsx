@@ -33,7 +33,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Building2, Plus, Trash2, ArrowLeft, Save, CheckCircle, Unlock } from "lucide-react";
+import { Building2, Plus, Trash2, ArrowLeft, CheckCircle, Unlock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -360,21 +360,6 @@ export default function InventariarAmbiente() {
     }
   };
 
-  const handleSalvar = async () => {
-    try {
-      toast({
-        title: "Sucesso",
-        description: `Inventário do ${ambiente?.nome} salvo com sucesso!`,
-      });
-    } catch (error) {
-      console.error('Error saving inventory:', error);
-      toast({
-        title: "Erro",
-        description: "Erro ao salvar inventário",
-        variant: "destructive",
-      });
-    }
-  };
 
   const handleConcluir = async () => {
     try {
@@ -639,10 +624,6 @@ export default function InventariarAmbiente() {
           <Button variant="outline" onClick={handleVoltar}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Voltar
-          </Button>
-          <Button onClick={handleSalvar}>
-            <Save className="h-4 w-4 mr-2" />
-            Salvar
           </Button>
           <Button 
             variant="success" 
