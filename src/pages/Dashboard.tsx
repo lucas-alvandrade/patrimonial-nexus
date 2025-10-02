@@ -11,9 +11,92 @@ import {
   MapPin,
   CheckCircle
 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 
 export default function Dashboard() {
-  const stats = [];
+  const [stats, setStats] = useState({
+    ambientesNaoIniciados: 0,
+    ambientesEmAndamento: 0,
+    ambientesConcluidos: 0,
+    itensLocalizados: 0,
+    totalBens: 0
+  });
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      // Buscar todos os ambientes
+      const { data: ambientes, error: ambientesError } = await supabase
+        .from('ambientes')
+        .select('id');
+
+      if (ambientesError) throw ambientesError;
+
+      // Buscar todos os inventários
+      const { data: inventarios, error: inventariosError } = await supabase
+        .from('inventarios')
+        .select('status, ambiente_id');
+
+      if (inventariosError) throw inventariosError;
+
+      const totalAmbientes = ambientes?.length || 0;
+      const inventariosMap = new Map(
+        inventarios?.map(inv => [inv.ambiente_id, inv.status]) || []
+      );
+
+      // Contar por status
+      let naoIniciados = 0;
+      let emAndamento = 0;
+      let concluidos = 0;
+
+      ambientes?.forEach(ambiente => {
+        const status = inventariosMap.get(ambiente.id) || 'nao_iniciado';
+        if (status === 'nao_iniciado') naoIniciados++;
+        else if (status === 'em_andamento') emAndamento++;
+        else if (status === 'concluido') concluidos++;
+      });
+
+      // Buscar total de itens localizados
+      const { count: itensCount, error: itensError } = await supabase
+        .from('inventario_itens')
+        .select('*', { count: 'exact', head: true });
+
+      if (itensError) throw itensError;
+
+      // Buscar total de bens cadastrados
+      const { count: bensCount, error: bensError } = await supabase
+        .from('bens')
+        .select('*', { count: 'exact', head: true });
+
+      if (bensError) throw bensError;
+
+      setStats({
+        ambientesNaoIniciados: naoIniciados,
+        ambientesEmAndamento: emAndamento,
+        ambientesConcluidos: concluidos,
+        itensLocalizados: itensCount || 0,
+        totalBens: bensCount || 0
+      });
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    }
+  };
+
+  const chartData = [
+    { name: 'Não Iniciados', value: stats.ambientesNaoIniciados, color: '#ef4444' },
+    { name: 'Em Andamento', value: stats.ambientesEmAndamento, color: '#eab308' },
+    { name: 'Concluídos', value: stats.ambientesConcluidos, color: '#22c55e' }
+  ];
+
+  const itensChartData = [
+    { name: 'Localizados', value: stats.itensLocalizados, color: '#22c55e' },
+    { name: 'Não Localizados', value: Math.max(0, stats.totalBens - stats.itensLocalizados), color: '#ef4444' }
+  ];
 
   const recentActivities = [];
 
@@ -31,12 +114,100 @@ export default function Dashboard() {
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat, index) => (
-          <StatsCard key={index} {...stat} />
-        ))}
+        <StatsCard 
+          title="Não Iniciados" 
+          value={stats.ambientesNaoIniciados} 
+          icon={AlertCircle}
+          description="Ambientes pendentes"
+        />
+        <StatsCard 
+          title="Em Andamento" 
+          value={stats.ambientesEmAndamento} 
+          icon={TrendingUp}
+          description="Sendo inventariados"
+        />
+        <StatsCard 
+          title="Concluídos" 
+          value={stats.ambientesConcluidos} 
+          icon={CheckCircle}
+          description="Inventários finalizados"
+        />
+        <StatsCard 
+          title="Itens Localizados" 
+          value={`${stats.itensLocalizados}/${stats.totalBens}`} 
+          icon={Package}
+          description="Total de itens"
+        />
       </div>
 
       {/* Content Grid */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Gráfico de Ambientes */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-primary" />
+              Status dos Ambientes
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={chartData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, value }) => `${name}: ${value}`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Gráfico de Itens */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="w-5 h-5 text-primary" />
+              Progresso do Inventário
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={itensChartData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, value }) => `${name}: ${value}`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {itensChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Atividades Recentes */}
       <div className="grid gap-6">
         {/* Recent Activities */}
         <Card>

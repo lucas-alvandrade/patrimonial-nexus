@@ -216,9 +216,49 @@ export default function InventariarAmbiente() {
     }
   };
 
+  const verificarItemDuplicado = async (patrimonio: string) => {
+    try {
+      // Buscar se o patrimônio já existe em algum inventário
+      const { data: itemExistente, error } = await supabase
+        .from('inventario_itens')
+        .select(`
+          *,
+          inventarios!inner(
+            ambiente_id,
+            ambientes!inner(nome)
+          )
+        `)
+        .eq('patrimonio', patrimonio)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error checking duplicate:', error);
+        return null;
+      }
+
+      return itemExistente;
+    } catch (error) {
+      console.error('Error checking duplicate:', error);
+      return null;
+    }
+  };
+
   const handlePatrimonioKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Tab' && currentItem.patrimonio.trim()) {
       e.preventDefault();
+      
+      // Verificar se o item já está cadastrado em algum ambiente
+      const itemDuplicado = await verificarItemDuplicado(currentItem.patrimonio.trim());
+      
+      if (itemDuplicado) {
+        const nomeAmbiente = itemDuplicado.inventarios?.ambientes?.nome || 'outro ambiente';
+        toast({
+          title: "Item duplicado",
+          description: `Este patrimônio já foi cadastrado no ambiente: ${nomeAmbiente}`,
+          variant: "destructive",
+        });
+        return;
+      }
       
       const bem = await buscarBemPorPatrimonio(currentItem.patrimonio.trim());
       
@@ -304,6 +344,19 @@ export default function InventariarAmbiente() {
       toast({
         title: "Atenção",
         description: "Preencha o patrimônio e a descrição",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Verificar se o item já está cadastrado em algum ambiente
+    const itemDuplicado = await verificarItemDuplicado(currentItem.patrimonio.trim());
+    
+    if (itemDuplicado) {
+      const nomeAmbiente = itemDuplicado.inventarios?.ambientes?.nome || 'outro ambiente';
+      toast({
+        title: "Item duplicado",
+        description: `Este patrimônio já foi cadastrado no ambiente: ${nomeAmbiente}`,
         variant: "destructive",
       });
       return;
