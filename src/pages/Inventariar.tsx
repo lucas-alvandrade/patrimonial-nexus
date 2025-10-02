@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Package } from "lucide-react";
+import { Building2, Package, Unlock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
 interface Ambiente {
@@ -23,6 +24,7 @@ interface Inventario {
 export default function Inventariar() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isAdmin } = useAuth();
   const [ambientes, setAmbientes] = useState<Ambiente[]>([]);
   const [inventarios, setInventarios] = useState<Inventario[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,6 +113,49 @@ export default function Inventariar() {
     });
   };
 
+  const handleDesbloquear = async (e: React.MouseEvent, ambienteId: number) => {
+    e.stopPropagation();
+    
+    try {
+      const inventario = inventarios.find(inv => inv.ambiente_id === ambienteId);
+      
+      if (!inventario) {
+        toast({
+          title: "Erro",
+          description: "Inventário não encontrado",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { error } = await supabase
+        .from('inventarios')
+        .update({ 
+          status: 'nao_iniciado',
+          concluido_por: null,
+          concluido_em: null
+        })
+        .eq('id', inventario.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: "Ambiente desbloqueado com sucesso",
+      });
+
+      // Atualizar a lista de inventários
+      fetchAmbientes();
+    } catch (error) {
+      console.error('Error unlocking ambiente:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao desbloquear ambiente",
+        variant: "destructive",
+      });
+    }
+  };
+
   const renderBlocoCard = (bloco: string, ambientesBloco: Ambiente[]) => (
     <Card key={bloco} className="mb-6">
       <CardHeader>
@@ -129,24 +174,36 @@ export default function Inventariar() {
               const statusColor = getStatusColor(status);
               
               return (
-                <Button
-                  key={ambiente.id}
-                  variant="outline"
-                  className={cn("h-auto p-4 text-left justify-start", statusColor)}
-                  onClick={() => handleAmbienteClick(ambiente)}
-                >
-                  <div className="flex items-center gap-2 w-full">
-                    <Package className="h-4 w-4 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">{ambiente.nome}</div>
-                      {ambiente.descricao && (
-                        <div className="text-sm text-muted-foreground truncate">
-                          {ambiente.descricao}
-                        </div>
+                <div key={ambiente.id} className="relative">
+                  <Button
+                    variant="outline"
+                    className={cn("h-auto p-4 text-left justify-start w-full", statusColor)}
+                    onClick={() => handleAmbienteClick(ambiente)}
+                  >
+                    <div className="flex items-center gap-2 w-full">
+                      <Package className="h-4 w-4 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">{ambiente.nome}</div>
+                        {ambiente.descricao && (
+                          <div className="text-sm text-muted-foreground truncate">
+                            {ambiente.descricao}
+                          </div>
+                        )}
+                      </div>
+                      {isAdmin && status === 'concluido' && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="ml-2"
+                          onClick={(e) => handleDesbloquear(e, ambiente.id)}
+                        >
+                          <Unlock className="h-4 w-4 mr-1" />
+                          Desbloquear
+                        </Button>
                       )}
                     </div>
-                  </div>
-                </Button>
+                  </Button>
+                </div>
               );
             })}
           </div>
