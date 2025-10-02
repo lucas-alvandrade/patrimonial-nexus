@@ -140,6 +140,18 @@ export default function InventariarAmbiente() {
           situacao: item.situacao as 'Bom' | 'Inservível'
         }));
         setItems(mappedItems);
+      } else {
+        // Se não há itens, garantir que o status seja "nao_iniciado"
+        if (inventario.status !== 'nao_iniciado') {
+          const { error: statusError } = await supabase
+            .from('inventarios')
+            .update({ status: 'nao_iniciado' })
+            .eq('id', inventario.id);
+
+          if (statusError) {
+            console.error('Error updating status:', statusError);
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching inventario:', error);
@@ -424,6 +436,18 @@ export default function InventariarAmbiente() {
       setItems(newItems);
       setSelectedItemIndex(null);
 
+      // Se não houver mais itens, voltar status para "nao_iniciado"
+      if (newItems.length === 0 && inventarioId) {
+        const { error: statusError } = await supabase
+          .from('inventarios')
+          .update({ status: 'nao_iniciado' })
+          .eq('id', inventarioId);
+
+        if (statusError) {
+          console.error('Error updating status:', statusError);
+        }
+      }
+
       toast({
         title: "Sucesso",
         description: "Item removido do inventário",
@@ -441,25 +465,11 @@ export default function InventariarAmbiente() {
 
   const handleConcluir = async () => {
     try {
-      // Buscar o usuário atual
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Usuário não autenticado');
-
-      // Buscar o ID do usuário na tabela usuarios
-      const { data: userData, error: userError } = await supabase
-        .from('usuarios')
-        .select('id')
-        .eq('ldap_id', user.user_metadata.ldap_id)
-        .single();
-
-      if (userError) throw userError;
-
-      // Atualizar status para concluído
+      // Atualizar status para concluído (sem vincular usuário por enquanto)
       const { error } = await supabase
         .from('inventarios')
         .update({ 
           status: 'concluido',
-          concluido_por: userData.id,
           concluido_em: new Date().toISOString()
         })
         .eq('id', inventarioId);
