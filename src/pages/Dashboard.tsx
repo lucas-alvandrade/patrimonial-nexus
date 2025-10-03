@@ -61,12 +61,16 @@ export default function Dashboard() {
         else if (status === 'concluido') concluidos++;
       });
 
-      // Buscar total de itens localizados
-      const { count: itensCount, error: itensError } = await supabase
+      // Buscar itens localizados únicos (por patrimônio)
+      const { data: itensData, error: itensError } = await supabase
         .from('inventario_itens')
-        .select('*', { count: 'exact', head: true });
+        .select('patrimonio');
 
       if (itensError) throw itensError;
+
+      // Contar patrimônios únicos
+      const patrimoniosUnicos = new Set(itensData?.map(item => item.patrimonio) || []);
+      const itensCount = patrimoniosUnicos.size;
 
       // Buscar total de bens cadastrados
       const { count: bensCount, error: bensError } = await supabase
@@ -79,7 +83,7 @@ export default function Dashboard() {
         ambientesNaoIniciados: naoIniciados,
         ambientesEmAndamento: emAndamento,
         ambientesConcluidos: concluidos,
-        itensLocalizados: itensCount || 0,
+        itensLocalizados: itensCount,
         totalBens: bensCount || 0
       });
     } catch (error) {
