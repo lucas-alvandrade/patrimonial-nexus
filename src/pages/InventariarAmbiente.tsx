@@ -602,6 +602,96 @@ export default function InventariarAmbiente() {
     oscillator.stop(audioContext.currentTime + 0.2);
   };
 
+  const processarPatrimonioScanner = async (patrimonio: string) => {
+    // Verificar se o item já está cadastrado em algum ambiente
+    const itemDuplicado = await verificarItemDuplicado(patrimonio);
+    
+    if (itemDuplicado) {
+      const nomeAmbiente = itemDuplicado.inventarios?.ambientes?.nome || 'outro ambiente';
+      toast({
+        title: "Item duplicado",
+        description: `Este patrimônio já foi cadastrado no ambiente: ${nomeAmbiente}`,
+        variant: "destructive",
+      });
+      stopBarcodeScanner();
+      return;
+    }
+    
+    const bem = await buscarBemPorPatrimonio(patrimonio);
+    
+    if (bem && bem.descricao) {
+      // Bem encontrado - salvar no banco automaticamente
+      if (!inventarioId) {
+        toast({
+          title: "Erro",
+          description: "Inventário não foi inicializado corretamente",
+          variant: "destructive",
+        });
+        stopBarcodeScanner();
+        return;
+      }
+
+      try {
+        // Salvar no banco de dados
+        const { data: itemData, error: itemError } = await supabase
+          .from('inventario_itens')
+          .insert({
+            inventario_id: inventarioId,
+            patrimonio: patrimonio,
+            descricao: bem.descricao,
+            situacao: currentItem.situacao
+          })
+          .select()
+          .single();
+
+        if (itemError) throw itemError;
+
+        // Atualizar status para "em_andamento" se for o primeiro item
+        if (items.length === 0) {
+          const { error: statusError } = await supabase
+            .from('inventarios')
+            .update({ status: 'em_andamento' })
+            .eq('id', inventarioId);
+
+          if (statusError) throw statusError;
+        }
+
+        const newItem: InventarioItem = {
+          id: itemData.id.toString(),
+          patrimonio: patrimonio,
+          descricao: bem.descricao,
+          situacao: currentItem.situacao
+        };
+
+        setItems([...items, newItem]);
+
+        toast({
+          title: "Sucesso",
+          description: "Item adicionado ao inventário",
+        });
+        
+        // Fechar a câmera após adicionar o item
+        stopBarcodeScanner();
+      } catch (error) {
+        console.error('Error adding item:', error);
+        toast({
+          title: "Erro",
+          description: "Erro ao adicionar item",
+          variant: "destructive",
+        });
+        stopBarcodeScanner();
+      }
+    } else {
+      // Bem não encontrado
+      toast({
+        title: "Bem não encontrado",
+        description: `Patrimônio ${patrimonio} não existe na tabela de Bens`,
+        variant: "destructive",
+      });
+      stopBarcodeScanner();
+    }
+  };
+
   const startBarcodeScanner = async () => {
     try {
       const { BrowserMultiFormatReader } = await import('@zxing/browser');
@@ -626,22 +716,13 @@ export default function InventariarAmbiente() {
                 // Emitir som de confirmação
                 playBeep();
                 
-                // Adicionar o código ao campo de patrimônio
-                setCurrentItem(prev => ({ ...prev, patrimonio: barcodeText }));
-                
                 toast({
                   title: "Código lido",
-                  description: `Patrimônio: ${barcodeText}`,
+                  description: `Processando patrimônio: ${barcodeText}`,
                 });
                 
                 // Processar automaticamente o patrimônio
-                setTimeout(() => {
-                  const input = patrimonioRef.current;
-                  if (input) {
-                    const event = new KeyboardEvent('keydown', { key: 'Tab' });
-                    input.dispatchEvent(event);
-                  }
-                }, 100);
+                processarPatrimonioScanner(barcodeText);
               }
             }
           );
@@ -947,7 +1028,7 @@ export default function InventariarAmbiente() {
             </div>
             <div className="p-4 text-center text-white">
               <p className="text-sm">Posicione o código de barras dentro da área marcada</p>
-              <p className="text-xs text-gray-400 mt-2">A câmera continuará ativa até você fechar o scanner</p>
+              <p className="text-xs text-gray-400 mt-2">A câmera fechará automaticamente após adicionar o item</p>
             </div>
           </div>
         )}
