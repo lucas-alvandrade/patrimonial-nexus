@@ -33,7 +33,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Building2, Plus, Trash2, ArrowLeft, Save, CheckCircle, Unlock } from "lucide-react";
+import { Building2, Plus, Trash2, ArrowLeft, Save, CheckCircle, Unlock, Camera, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -72,9 +72,12 @@ export default function InventariarAmbiente() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [showConcluirDialog, setShowConcluirDialog] = useState(false);
   const [showDesbloquearDialog, setShowDesbloquearDialog] = useState(false);
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   
   const patrimonioRef = useRef<HTMLInputElement>(null);
   const descricaoRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const scannerRef = useRef<any>(null);
 
   useEffect(() => {
     if (!ambiente && id) {
@@ -244,7 +247,7 @@ export default function InventariarAmbiente() {
   };
 
   const handlePatrimonioKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Tab' && currentItem.patrimonio.trim()) {
+    if ((e.key === 'Tab' || e.key === 'Enter') && currentItem.patrimonio.trim()) {
       e.preventDefault();
       
       // Verificar se o item já está cadastrado em algum ambiente
@@ -581,6 +584,95 @@ export default function InventariarAmbiente() {
     navigate('/inventariar');
   };
 
+  const playBeep = () => {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.value = 800;
+    oscillator.type = 'sine';
+    
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.2);
+  };
+
+  const startBarcodeScanner = async () => {
+    try {
+      const { BrowserMultiFormatReader } = await import('@zxing/browser');
+      
+      setShowBarcodeScanner(true);
+      
+      // Aguardar um pouco para o vídeo estar disponível
+      setTimeout(async () => {
+        if (!videoRef.current) return;
+        
+        const codeReader = new BrowserMultiFormatReader();
+        scannerRef.current = codeReader;
+        
+        try {
+          await codeReader.decodeFromVideoDevice(
+            undefined,
+            videoRef.current,
+            (result, error) => {
+              if (result) {
+                const barcodeText = result.getText();
+                
+                // Emitir som de confirmação
+                playBeep();
+                
+                // Adicionar o código ao campo de patrimônio
+                setCurrentItem(prev => ({ ...prev, patrimonio: barcodeText }));
+                
+                toast({
+                  title: "Código lido",
+                  description: `Patrimônio: ${barcodeText}`,
+                });
+                
+                // Processar automaticamente o patrimônio
+                setTimeout(() => {
+                  const input = patrimonioRef.current;
+                  if (input) {
+                    const event = new KeyboardEvent('keydown', { key: 'Tab' });
+                    input.dispatchEvent(event);
+                  }
+                }, 100);
+              }
+            }
+          );
+        } catch (err) {
+          console.error('Error starting barcode scanner:', err);
+          toast({
+            title: "Erro",
+            description: "Não foi possível acessar a câmera",
+            variant: "destructive",
+          });
+          setShowBarcodeScanner(false);
+        }
+      }, 300);
+    } catch (error) {
+      console.error('Error loading barcode scanner:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar scanner",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const stopBarcodeScanner = () => {
+    if (scannerRef.current) {
+      scannerRef.current.reset();
+      scannerRef.current = null;
+    }
+    setShowBarcodeScanner(false);
+  };
+
   if (!ambiente) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -702,6 +794,14 @@ export default function InventariarAmbiente() {
                   Cadastrar
                 </Button>
                 <Button 
+                  variant="outline"
+                  onClick={startBarcodeScanner}
+                  disabled={isConcluido}
+                  title="Ler código de barras"
+                >
+                  <Camera className="h-4 w-4" />
+                </Button>
+                <Button 
                   variant="destructive" 
                   onClick={handleExcluir}
                   disabled={selectedItemIndex === null || isConcluido}
@@ -819,6 +919,38 @@ export default function InventariarAmbiente() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {showBarcodeScanner && (
+          <div className="fixed inset-0 z-50 bg-black/90 flex flex-col">
+            <div className="flex justify-between items-center p-4 bg-black/50">
+              <h2 className="text-white text-xl font-semibold">Scanner de Código de Barras</h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={stopBarcodeScanner}
+                className="text-white hover:bg-white/20"
+              >
+                <X className="h-6 w-6" />
+              </Button>
+            </div>
+            <div className="flex-1 flex items-center justify-center p-4">
+              <div className="relative w-full max-w-2xl aspect-video">
+                <video
+                  ref={videoRef}
+                  className="w-full h-full object-cover rounded-lg"
+                  autoPlay
+                  playsInline
+                />
+                <div className="absolute inset-0 border-4 border-primary/50 rounded-lg pointer-events-none" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-1 bg-primary/70 animate-pulse" />
+              </div>
+            </div>
+            <div className="p-4 text-center text-white">
+              <p className="text-sm">Posicione o código de barras dentro da área marcada</p>
+              <p className="text-xs text-gray-400 mt-2">A câmera continuará ativa até você fechar o scanner</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
