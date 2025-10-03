@@ -19,6 +19,9 @@ import {
   AlertTriangle
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import * as XLSX from "xlsx";
+import { toast } from "sonner";
 
 export default function Relatorios() {
   const { isAdmin } = useAuth();
@@ -40,7 +43,131 @@ export default function Relatorios() {
       </div>
     );
   }
-  const relatorios = [];
+
+  const gerarRelatorioItensLocalizados = async () => {
+    try {
+      const { data: inventarioItens, error } = await supabase
+        .from("inventario_itens")
+        .select(`
+          patrimonio,
+          descricao,
+          inventario_id
+        `);
+
+      if (error) throw error;
+
+      // Buscar dados dos bens para cada item
+      const itensComDetalhes = await Promise.all(
+        inventarioItens.map(async (item) => {
+          const { data: bem } = await supabase
+            .from("bens")
+            .select("carga_atual, setor_responsavel, valor")
+            .eq("numero_patrimonio", item.patrimonio)
+            .single();
+
+          // Buscar ambiente através do inventário
+          const { data: inventario } = await supabase
+            .from("inventarios")
+            .select("ambiente_id")
+            .eq("id", item.inventario_id)
+            .single();
+
+          let nomeAmbiente = "";
+          if (inventario) {
+            const { data: ambiente } = await supabase
+              .from("ambientes")
+              .select("nome")
+              .eq("id", inventario.ambiente_id)
+              .single();
+            nomeAmbiente = ambiente?.nome || "";
+          }
+
+          return {
+            Ambiente: nomeAmbiente,
+            Patrimônio: item.patrimonio,
+            Descrição: item.descricao,
+            "Carga Atual": bem?.carga_atual || "",
+            "Setor Responsável": bem?.setor_responsavel || "",
+            Valor: bem?.valor || 0,
+          };
+        })
+      );
+
+      // Criar planilha Excel
+      const ws = XLSX.utils.json_to_sheet(itensComDetalhes);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Itens Localizados");
+      XLSX.writeFile(wb, "relatorio_itens_localizados.xlsx");
+
+      toast.success("Relatório de itens localizados gerado com sucesso!");
+    } catch (error) {
+      console.error("Erro ao gerar relatório:", error);
+      toast.error("Erro ao gerar relatório de itens localizados");
+    }
+  };
+
+  const gerarRelatorioItensNaoLocalizados = async () => {
+    try {
+      // Buscar todos os bens
+      const { data: bens, error: bensError } = await supabase
+        .from("bens")
+        .select("numero_patrimonio, descricao, carga_atual, setor_responsavel, valor");
+
+      if (bensError) throw bensError;
+
+      // Buscar todos os patrimônios localizados
+      const { data: itensLocalizados, error: itensError } = await supabase
+        .from("inventario_itens")
+        .select("patrimonio");
+
+      if (itensError) throw itensError;
+
+      const patrimoniosLocalizados = new Set(
+        itensLocalizados.map((item) => item.patrimonio)
+      );
+
+      // Filtrar bens não localizados
+      const itensNaoLocalizados = bens
+        .filter((bem) => !patrimoniosLocalizados.has(bem.numero_patrimonio))
+        .map((bem) => ({
+          Patrimônio: bem.numero_patrimonio,
+          Descrição: bem.descricao,
+          "Carga Atual": bem.carga_atual || "",
+          "Setor Responsável": bem.setor_responsavel || "",
+          Valor: bem.valor || 0,
+        }));
+
+      // Criar planilha Excel
+      const ws = XLSX.utils.json_to_sheet(itensNaoLocalizados);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Itens Não Localizados");
+      XLSX.writeFile(wb, "relatorio_itens_nao_localizados.xlsx");
+
+      toast.success("Relatório de itens não localizados gerado com sucesso!");
+    } catch (error) {
+      console.error("Erro ao gerar relatório:", error);
+      toast.error("Erro ao gerar relatório de itens não localizados");
+    }
+  };
+
+  const relatorios = [
+    {
+      id: 1,
+      titulo: "Itens Localizados",
+      descricao: "Lista completa de todos os itens localizados durante o inventário",
+      icon: Package,
+      frequencia: "Sob demanda",
+      acao: gerarRelatorioItensLocalizados,
+    },
+    {
+      id: 2,
+      titulo: "Itens Não Localizados",
+      descricao: "Lista de itens cadastrados que não foram encontrados no inventário",
+      icon: AlertTriangle,
+      frequencia: "Sob demanda",
+      acao: gerarRelatorioItensNaoLocalizados,
+    },
+  ];
 
   const dashboardData = [];
 
@@ -128,12 +255,9 @@ export default function Relatorios() {
                     {relatorio.descricao}
                   </p>
                   <div className="flex gap-2">
-                    <Button size="sm" className="flex-1">
+                    <Button size="sm" className="flex-1" onClick={relatorio.acao}>
                       <Download className="w-4 h-4 mr-2" />
-                      Gerar PDF
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <BarChart3 className="w-4 h-4" />
+                      Gerar Excel
                     </Button>
                   </div>
                 </CardContent>
