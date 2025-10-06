@@ -78,6 +78,7 @@ export default function InventariarAmbiente() {
   const descricaoRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<any>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     if (!ambiente && id) {
@@ -694,48 +695,93 @@ export default function InventariarAmbiente() {
 
   const startBarcodeScanner = async () => {
     try {
-      const { BrowserMultiFormatReader } = await import('@zxing/browser');
-      
       setShowBarcodeScanner(true);
       
       // Aguardar um pouco para o vídeo estar disponível
-      setTimeout(async () => {
-        if (!videoRef.current) return;
-        
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      if (!videoRef.current) {
+        toast({
+          title: "Erro",
+          description: "Elemento de vídeo não disponível",
+          variant: "destructive",
+        });
+        setShowBarcodeScanner(false);
+        return;
+      }
+
+      // Solicitar acesso à câmera
+      const constraints = {
+        video: {
+          facingMode: 'environment', // Usar câmera traseira em dispositivos móveis
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        }
+      };
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        streamRef.current = stream;
+        videoRef.current.srcObject = stream;
+
+        // Aguardar o vídeo estar pronto
+        await videoRef.current.play();
+
+        // Importar e iniciar o scanner
+        const { BrowserMultiFormatReader } = await import('@zxing/browser');
         const codeReader = new BrowserMultiFormatReader();
         scannerRef.current = codeReader;
+
+        // Configurar hints para melhorar a detecção
+        const hints = new Map();
+        const { BarcodeFormat, DecodeHintType } = await import('@zxing/library');
         
-        try {
-          await codeReader.decodeFromVideoDevice(
-            undefined,
-            videoRef.current,
-            (result, error) => {
-              if (result) {
-                const barcodeText = result.getText();
-                
-                // Emitir som de confirmação
-                playBeep();
-                
-                toast({
-                  title: "Código lido",
-                  description: `Processando patrimônio: ${barcodeText}`,
-                });
-                
-                // Processar automaticamente o patrimônio
-                processarPatrimonioScanner(barcodeText);
-              }
+        // Aceitar múltiplos formatos de código de barras
+        hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+          BarcodeFormat.CODE_128,
+          BarcodeFormat.CODE_39,
+          BarcodeFormat.EAN_13,
+          BarcodeFormat.EAN_8,
+          BarcodeFormat.UPC_A,
+          BarcodeFormat.UPC_E,
+          BarcodeFormat.QR_CODE,
+        ]);
+        hints.set(DecodeHintType.TRY_HARDER, true);
+
+        // Iniciar decodificação contínua
+        codeReader.decodeFromVideoElement(
+          videoRef.current,
+          (result, error) => {
+            if (result) {
+              const barcodeText = result.getText();
+              console.log('Código lido:', barcodeText);
+              
+              // Emitir som de confirmação
+              playBeep();
+              
+              toast({
+                title: "Código lido",
+                description: `Processando patrimônio: ${barcodeText}`,
+              });
+              
+              // Processar automaticamente o patrimônio
+              processarPatrimonioScanner(barcodeText);
             }
-          );
-        } catch (err) {
-          console.error('Error starting barcode scanner:', err);
-          toast({
-            title: "Erro",
-            description: "Não foi possível acessar a câmera",
-            variant: "destructive",
-          });
-          setShowBarcodeScanner(false);
-        }
-      }, 300);
+            
+            if (error && error.name !== 'NotFoundException') {
+              console.error('Erro ao decodificar:', error);
+            }
+          }
+        );
+      } catch (err) {
+        console.error('Error accessing camera:', err);
+        toast({
+          title: "Erro",
+          description: "Não foi possível acessar a câmera. Verifique as permissões.",
+          variant: "destructive",
+        });
+        setShowBarcodeScanner(false);
+      }
     } catch (error) {
       console.error('Error loading barcode scanner:', error);
       toast({
@@ -743,15 +789,39 @@ export default function InventariarAmbiente() {
         description: "Erro ao carregar scanner",
         variant: "destructive",
       });
+      setShowBarcodeScanner(false);
     }
   };
 
   const stopBarcodeScanner = () => {
+    console.log('Fechando scanner...');
+    
+    // Parar o scanner
     if (scannerRef.current) {
-      scannerRef.current.reset();
+      try {
+        scannerRef.current.reset();
+      } catch (e) {
+        console.error('Erro ao resetar scanner:', e);
+      }
       scannerRef.current = null;
     }
+    
+    // Parar o stream da câmera
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => {
+        track.stop();
+        console.log('Track parado:', track.kind);
+      });
+      streamRef.current = null;
+    }
+    
+    // Limpar o vídeo
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    
     setShowBarcodeScanner(false);
+    console.log('Scanner fechado');
   };
 
   if (!ambiente) {
