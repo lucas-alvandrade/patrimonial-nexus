@@ -971,6 +971,13 @@ export default function InventariarAmbiente() {
                         setOpenDescricao(false);
                       }
                     }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        setOpenDescricao(false);
+                        handleCadastrar();
+                      }
+                    }}
                     onFocus={() => {
                       if (currentItem.descricao.length > 0) {
                         setOpenDescricao(true);
