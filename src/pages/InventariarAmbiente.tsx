@@ -948,6 +948,9 @@ export default function InventariarAmbiente() {
                 <Input
                   ref={patrimonioRef}
                   id="patrimonio"
+                  type="text"
+                  inputMode="text"
+                  enterKeyHint="next"
                   value={currentItem.patrimonio}
                   onChange={(e) => setCurrentItem({...currentItem, patrimonio: e.target.value})}
                   onKeyDown={handlePatrimonioKeyDown}
@@ -961,6 +964,9 @@ export default function InventariarAmbiente() {
                   <Input
                     ref={descricaoRef}
                     id="descricao"
+                    type="text"
+                    inputMode="text"
+                    enterKeyHint="done"
                     value={currentItem.descricao}
                     onChange={(e) => {
                       const value = e.target.value;
