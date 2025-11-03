@@ -949,10 +949,13 @@ export default function InventariarAmbiente() {
                   ref={patrimonioRef}
                   id="patrimonio"
                   type="text"
-                  inputMode="text"
+                  inputMode="numeric"
                   enterKeyHint="next"
                   value={currentItem.patrimonio}
-                  onChange={(e) => setCurrentItem({...currentItem, patrimonio: e.target.value})}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '');
+                    setCurrentItem({...currentItem, patrimonio: value});
+                  }}
                   onKeyDown={handlePatrimonioKeyDown}
                   placeholder="Número do patrimônio"
                   disabled={isConcluido}
