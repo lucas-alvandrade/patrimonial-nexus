@@ -128,10 +128,22 @@ export default function Inventariar() {
         return;
       }
 
+      // Verificar se há itens cadastrados no inventário
+      const { data: itens, error: itensError } = await supabase
+        .from('inventario_itens')
+        .select('id')
+        .eq('inventario_id', inventario.id)
+        .limit(1);
+
+      if (itensError) throw itensError;
+
+      // Se houver itens, status deve ser 'em_andamento', caso contrário 'nao_iniciado'
+      const novoStatus = itens && itens.length > 0 ? 'em_andamento' : 'nao_iniciado';
+
       const { error } = await supabase
         .from('inventarios')
         .update({ 
-          status: 'nao_iniciado',
+          status: novoStatus,
           concluido_por: null,
           concluido_em: null
         })
