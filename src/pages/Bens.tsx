@@ -29,7 +29,8 @@ import {
   Eye,
   MapPin,
   Upload,
-  DollarSign
+  DollarSign,
+  AlertTriangle
 } from "lucide-react";
 import FileUpload from "@/components/FileUpload";
 import { useAuth } from "@/hooks/useAuth";
@@ -101,6 +102,46 @@ export default function Bens() {
 
   const valorTotal = bens.reduce((total, bem) => total + (parseFloat(bem.valor) || 0), 0);
 
+  const handleDeleteAll = async () => {
+    if (!confirm('Tem certeza que deseja apagar TODOS os bens? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('bens')
+        .delete()
+        .neq('id', 0); // Delete all records
+
+      if (error) {
+        console.error('Error deleting bens:', error);
+        toast({
+          title: "Erro",
+          description: "Erro ao apagar bens. Tente novamente.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Sucesso",
+        description: "Todos os bens foram apagados.",
+      });
+
+      fetchBens();
+    } catch (error) {
+      console.error('Error deleting bens:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao apagar bens. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -112,6 +153,14 @@ export default function Bens() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            variant="destructive" 
+            onClick={handleDeleteAll}
+            disabled={loading || bens.length === 0}
+          >
+            <AlertTriangle className="w-4 h-4 mr-2" />
+            Apagar Todos
+          </Button>
           <Button variant="outline" onClick={() => setActiveTab("upload")}>
             <Upload className="w-4 h-4 mr-2" />
             Importar
