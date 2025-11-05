@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import logo from "@/assets/logo.jpg";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,10 +41,10 @@ const Login = () => {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-            <Lock className="h-6 w-6 text-primary" />
+          <div className="mx-auto mb-4">
+            <img src={logo} alt="SIIF Logo" className="w-20 h-20 object-contain mx-auto" />
           </div>
-          <CardTitle className="text-2xl font-bold">PatrimonioSys</CardTitle>
+          <CardTitle className="text-2xl font-bold">SIIF - Sistema de Inventário</CardTitle>
           <CardDescription>
             Entre com suas credenciais para acessar o sistema
           </CardDescription>

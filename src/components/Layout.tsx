@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Outlet, Link, useLocation, Navigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import logo from "@/assets/logo.jpg";
 import {
   Building2,
   Package,
@@ -69,11 +70,9 @@ export default function Layout() {
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex h-16 items-center justify-between px-6 border-b border-border">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 gradient-primary rounded-lg flex items-center justify-center">
-              <Package className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <h1 className="text-xl font-bold text-foreground">PatrimonioSys</h1>
+          <div className="flex items-center space-x-3">
+            <img src={logo} alt="SIIF Logo" className="w-10 h-10 object-contain" />
+            <h1 className="text-xl font-bold text-foreground">SIIF</h1>
           </div>
           <Button
             variant="ghost"
