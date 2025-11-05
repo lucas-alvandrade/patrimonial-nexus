@@ -15,10 +15,10 @@
     --popover: 0 0% 100%;
     --popover-foreground: 215 25% 15%;
 
-    --primary: 214 84% 56%;
+    --primary: 120 61% 50%;
     --primary-foreground: 0 0% 98%;
-    --primary-hover: 214 84% 51%;
-    --primary-light: 214 100% 95%;
+    --primary-hover: 120 61% 45%;
+    --primary-light: 120 61% 95%;
 
     --secondary: 214 32% 91%;
     --secondary-foreground: 215 25% 26%;
@@ -44,12 +44,12 @@
 
     --border: 214 32% 91%;
     --input: 214 32% 91%;
-    --ring: 214 84% 56%;
+    --ring: 120 61% 50%;
 
     --radius: 0.75rem;
 
     /* Gradientes Corporativos */
-    --gradient-primary: linear-gradient(135deg, hsl(214 84% 56%), hsl(214 84% 46%));
+    --gradient-primary: linear-gradient(135deg, hsl(120 61% 50%), hsl(120 61% 45%));
     --gradient-secondary: linear-gradient(135deg, hsl(214 32% 91%), hsl(214 32% 86%));
     --gradient-success: linear-gradient(135deg, hsl(142 76% 36%), hsl(142 76% 31%));
     
@@ -57,7 +57,7 @@
     --shadow-sm: 0 1px 3px 0 hsl(214 32% 91% / 0.5);
     --shadow-md: 0 4px 6px -1px hsl(214 32% 91% / 0.3), 0 2px 4px -1px hsl(214 32% 91% / 0.2);
     --shadow-lg: 0 10px 15px -3px hsl(214 32% 91% / 0.3), 0 4px 6px -2px hsl(214 32% 91% / 0.2);
-    --shadow-primary: 0 8px 25px -5px hsl(214 84% 56% / 0.3);
+    --shadow-primary: 0 8px 25px -5px hsl(120 61% 50% / 0.3);
 
     /* Animações */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -65,12 +65,12 @@
 
     --sidebar-background: 250 250% 99%;
     --sidebar-foreground: 215 25% 26%;
-    --sidebar-primary: 214 84% 56%;
+    --sidebar-primary: 120 61% 50%;
     --sidebar-primary-foreground: 0 0% 98%;
     --sidebar-accent: 214 32% 91%;
     --sidebar-accent-foreground: 215 25% 26%;
     --sidebar-border: 214 32% 91%;
-    --sidebar-ring: 214 84% 56%;
+    --sidebar-ring: 120 61% 50%;
 
     /* Extensões CSS para variantes não existentes */
     --secondary-light: 214 100% 97%;
@@ -86,10 +86,10 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 214 84% 56%;
+    --primary: 120 61% 50%;
     --primary-foreground: 0 0% 98%;
-    --primary-hover: 214 84% 51%;
-    --primary-light: 214 84% 15%;
+    --primary-hover: 120 61% 45%;
+    --primary-light: 120 61% 20%;
 
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -115,16 +115,16 @@
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 214 84% 56%;
+    --ring: 120 61% 50%;
     
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 214 84% 56%;
+    --sidebar-primary: 120 61% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 3.7% 15.9%;
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 214 84% 56%;
+    --sidebar-ring: 120 61% 50%;
 
     /* Extensões CSS para variantes não existentes */
     --secondary-light: 217.2 32.6% 25%;
