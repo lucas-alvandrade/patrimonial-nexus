@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { OnlineStatusIndicator } from "./OnlineStatusIndicator";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
@@ -165,6 +166,7 @@ export default function Layout() {
           </Button>
           
           <div className="flex items-center space-x-4 ml-auto">
+            <OnlineStatusIndicator />
             <div className="hidden lg:flex items-center gap-2 text-sm text-muted-foreground">
               <User className="h-4 w-4" />
               <span>{user.email}</span>
