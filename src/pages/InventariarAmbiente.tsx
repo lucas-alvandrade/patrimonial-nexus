@@ -309,7 +309,7 @@ export default function InventariarAmbiente() {
             situacao: currentItem.situacao
           };
 
-          setItems([...items, newItem]);
+          setItems([newItem, ...items]);
           setCurrentItem({
             patrimonio: '',
             descricao: '',
@@ -420,7 +420,7 @@ export default function InventariarAmbiente() {
         situacao: currentItem.situacao
       };
 
-      setItems([...items, newItem]);
+      setItems([newItem, ...items]);
       setCurrentItem({
         patrimonio: '',
         descricao: '',
@@ -1101,7 +1101,7 @@ export default function InventariarAmbiente() {
 
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle>Itens do Inventário</CardTitle>
+            <CardTitle>Itens do Inventário ({items.length})</CardTitle>
           </CardHeader>
           <CardContent>
             {items.length === 0 ? (
