@@ -5,6 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import {
   Table,
   TableBody,
   TableCell,
@@ -44,6 +53,8 @@ export default function Bens() {
   const [activeTab, setActiveTab] = useState("list");
   const [bens, setBens] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 100;
 
   // Check if user is admin
   if (!isAdmin) {
@@ -98,9 +109,25 @@ export default function Bens() {
                          bem.numero_patrimonio?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          bem.setor_responsavel?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
+  }).sort((a, b) => {
+    // Sort ascending by numero_patrimonio
+    const numA = a.numero_patrimonio?.toString() || '';
+    const numB = b.numero_patrimonio?.toString() || '';
+    return numA.localeCompare(numB, undefined, { numeric: true });
   });
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredBens.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedBens = filteredBens.slice(startIndex, endIndex);
+
   const valorTotal = bens.reduce((total, bem) => total + (parseFloat(bem.valor) || 0), 0);
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   const handleDeleteAll = async () => {
     if (!confirm('Tem certeza que deseja apagar TODOS os bens? Esta ação não pode ser desfeita.')) {
@@ -239,7 +266,14 @@ export default function Bens() {
           {/* Bens Table */}
           <Card>
             <CardHeader>
-              <CardTitle>Lista de Bens ({filteredBens.length})</CardTitle>
+              <CardTitle>
+                Lista de Bens ({filteredBens.length})
+                {totalPages > 1 && (
+                  <span className="text-sm font-normal text-muted-foreground ml-2">
+                    - Página {currentPage} de {totalPages}
+                  </span>
+                )}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="rounded-md border">
@@ -261,7 +295,7 @@ export default function Bens() {
                           Carregando...
                         </TableCell>
                       </TableRow>
-                    ) : filteredBens.length === 0 ? (
+                    ) : paginatedBens.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={6} className="text-center py-8">
                           <div className="text-muted-foreground">
@@ -270,7 +304,7 @@ export default function Bens() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredBens.map((bem) => (
+                      paginatedBens.map((bem) => (
                         <TableRow key={bem.id} className="hover:bg-muted/50 transition-smooth">
                           <TableCell className="font-medium">
                             {bem.numero_patrimonio}
@@ -303,6 +337,57 @@ export default function Bens() {
                   </TableBody>
                 </Table>
               </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="mt-4">
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        />
+                      </PaginationItem>
+                      
+                      {[...Array(totalPages)].map((_, idx) => {
+                        const pageNum = idx + 1;
+                        // Show first page, last page, current page, and pages around current
+                        if (
+                          pageNum === 1 ||
+                          pageNum === totalPages ||
+                          (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                        ) {
+                          return (
+                            <PaginationItem key={pageNum}>
+                              <PaginationLink
+                                onClick={() => setCurrentPage(pageNum)}
+                                isActive={currentPage === pageNum}
+                                className="cursor-pointer"
+                              >
+                                {pageNum}
+                              </PaginationLink>
+                            </PaginationItem>
+                          );
+                        } else if (
+                          pageNum === currentPage - 2 ||
+                          pageNum === currentPage + 2
+                        ) {
+                          return <PaginationEllipsis key={pageNum} />;
+                        }
+                        return null;
+                      })}
+
+                      <PaginationItem>
+                        <PaginationNext
+                          onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                          className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
