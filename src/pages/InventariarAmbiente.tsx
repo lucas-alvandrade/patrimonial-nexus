@@ -710,27 +710,21 @@ export default function InventariarAmbiente() {
         return;
       }
 
-      console.log('Iniciando scanner de código de barras...');
-
       // Tentar obter a lista de dispositivos de vídeo disponíveis
       let selectedDeviceId: string | undefined;
       try {
         const devices = await navigator.mediaDevices.enumerateDevices();
         const videoDevices = devices.filter(device => device.kind === 'videoinput');
         
-        console.log('Câmeras disponíveis:', videoDevices.length);
-        
         // Procurar pela câmera traseira (environment)
         const backCamera = videoDevices.find(device => 
           device.label.toLowerCase().includes('back') || 
           device.label.toLowerCase().includes('rear') ||
-          device.label.toLowerCase().includes('traseira') ||
-          device.label.toLowerCase().includes('environment')
+          device.label.toLowerCase().includes('traseira')
         );
         
         if (backCamera) {
           selectedDeviceId = backCamera.deviceId;
-          console.log('Câmera traseira encontrada:', backCamera.label);
         }
       } catch (err) {
         console.log('Não foi possível enumerar dispositivos:', err);
@@ -742,31 +736,23 @@ export default function InventariarAmbiente() {
         selectedDeviceId ? {
           video: {
             deviceId: { exact: selectedDeviceId },
-            width: { ideal: 1920, max: 3840 },
-            height: { ideal: 1080, max: 2160 }
+            width: { ideal: 1280, max: 1920 },
+            height: { ideal: 720, max: 1080 }
           }
         } : null,
-        // Tentar com facingMode environment (exact)
-        {
-          video: {
-            facingMode: { exact: 'environment' },
-            width: { ideal: 1920, max: 3840 },
-            height: { ideal: 1080, max: 2160 }
-          }
-        },
-        // Tentar com facingMode environment (ideal)
+        // Tentar com facingMode environment (ideal, não exact)
         {
           video: {
             facingMode: { ideal: 'environment' },
-            width: { ideal: 1920, max: 3840 },
-            height: { ideal: 1080, max: 2160 }
+            width: { ideal: 1280, max: 1920 },
+            height: { ideal: 720, max: 1080 }
           }
         },
-        // Tentar com alta resolução
+        // Tentar com apenas video básico
         {
           video: {
-            width: { ideal: 1920 },
-            height: { ideal: 1080 }
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
           }
         },
         // Fallback final - qualquer câmera
@@ -781,11 +767,11 @@ export default function InventariarAmbiente() {
         try {
           stream = await navigator.mediaDevices.getUserMedia(constraints as MediaStreamConstraints);
           if (stream) {
-            console.log('Câmera obtida com sucesso');
+            console.log('Câmera obtida com sucesso:', constraints);
             break;
           }
         } catch (err) {
-          console.log('Tentativa falhou, tentando próxima configuração...');
+          console.log('Tentativa falhou com constraints:', constraints, err);
           lastError = err;
         }
       }
@@ -804,14 +790,11 @@ export default function InventariarAmbiente() {
 
       // Aguardar o vídeo estar pronto
       await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('Timeout ao iniciar vídeo')), 10000);
+        const timeout = setTimeout(() => reject(new Error('Timeout ao iniciar vídeo')), 5000);
         videoRef.current!.onloadedmetadata = () => {
           clearTimeout(timeout);
           videoRef.current!.play()
-            .then(() => {
-              console.log('Vídeo iniciado com sucesso');
-              resolve();
-            })
+            .then(() => resolve())
             .catch(reject);
         };
       });
@@ -824,11 +807,11 @@ export default function InventariarAmbiente() {
       
       // Formatos de código de barras mais comuns
       hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-        BarcodeFormat.EAN_13,
-        BarcodeFormat.EAN_8,
         BarcodeFormat.CODE_128,
         BarcodeFormat.CODE_39,
         BarcodeFormat.CODE_93,
+        BarcodeFormat.EAN_13,
+        BarcodeFormat.EAN_8,
         BarcodeFormat.UPC_A,
         BarcodeFormat.UPC_E,
         BarcodeFormat.QR_CODE,
@@ -838,56 +821,39 @@ export default function InventariarAmbiente() {
       
       // Tentar mais agressivamente decodificar
       hints.set(DecodeHintType.TRY_HARDER, true);
+      
+      // Assumir que o código está em uma única linha
+      hints.set(DecodeHintType.ASSUME_CODE_39_CHECK_DIGIT, false);
 
       const codeReader = new BrowserMultiFormatReader(hints);
       scannerRef.current = codeReader;
 
-      console.log('Iniciando decodificação contínua...');
-      
-      let isProcessing = false;
-
-      // Usar decodeFromStream para melhor compatibilidade
-      await codeReader.decodeFromStream(
-        stream,
+      // Iniciar decodificação contínua
+      codeReader.decodeFromVideoElement(
         videoRef.current,
         (result, error) => {
-          if (result && !isProcessing) {
-            isProcessing = true;
+          if (result) {
             const barcodeText = result.getText();
-            console.log('✅ Código detectado:', barcodeText);
+            console.log('Código lido:', barcodeText);
             
             // Emitir som de confirmação
             playBeep();
             
-            // Mostrar toast de sucesso
             toast({
-              title: "✅ Código lido com sucesso!",
-              description: `Patrimônio: ${barcodeText}`,
+              title: "Código lido",
+              description: `Processando patrimônio: ${barcodeText}`,
             });
             
             // Processar automaticamente o patrimônio
             processarPatrimonioScanner(barcodeText);
-            
-            // Pequeno delay antes de permitir nova leitura
-            setTimeout(() => {
-              isProcessing = false;
-            }, 1000);
           }
           
           // Não logar erros NotFoundException (são esperados durante a varredura)
           if (error && error.name !== 'NotFoundException') {
-            console.log('Erro na detecção:', error.name);
+            console.error('Erro ao decodificar:', error);
           }
         }
       );
-      
-      console.log('Scanner configurado e ativo');
-      
-      toast({
-        title: "📷 Câmera ativa",
-        description: "Aproxime o código de barras da câmera",
-      });
-      
     } catch (error: any) {
       console.error('Error starting barcode scanner:', error);
       
