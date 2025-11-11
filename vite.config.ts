@@ -13,25 +13,6 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      "react": path.resolve(__dirname, "./node_modules/react"),
-      "react-dom": path.resolve(__dirname, "./node_modules/react-dom"),
-    },
-  },
-  optimizeDeps: {
-    include: [
-      'react', 
-      'react-dom',
-      '@tanstack/react-query',
-      '@radix-ui/react-tooltip',
-      '@supabase/supabase-js',
-    ],
-    esbuildOptions: {
-      target: 'esnext',
-    },
-  },
-  build: {
-    commonjsOptions: {
-      include: [/node_modules/],
     },
   },
 }));
