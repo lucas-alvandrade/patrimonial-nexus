@@ -4,6 +4,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
   Table,
   TableBody,
   TableCell,
@@ -45,6 +55,13 @@ export default function Ambientes() {
   const [activeTab, setActiveTab] = useState("list");
   const [ambientes, setAmbientes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingAmbiente, setEditingAmbiente] = useState<any>(null);
+  const [editForm, setEditForm] = useState({
+    nome: '',
+    bloco: '',
+    descricao: ''
+  });
 
   const fetchAmbientes = async () => {
     try {
@@ -63,6 +80,57 @@ export default function Ambientes() {
       console.error('Error fetching ambientes:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEditClick = (ambiente: any) => {
+    setEditingAmbiente(ambiente);
+    setEditForm({
+      nome: ambiente.nome || '',
+      bloco: ambiente.bloco || '',
+      descricao: ambiente.descricao || ''
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleUpdateAmbiente = async () => {
+    if (!editingAmbiente) return;
+
+    try {
+      const { error } = await supabase
+        .from('ambientes')
+        .update({
+          nome: editForm.nome,
+          bloco: editForm.bloco,
+          descricao: editForm.descricao
+        })
+        .eq('id', editingAmbiente.id);
+
+      if (error) {
+        console.error('Error updating ambiente:', error);
+        toast({
+          title: "Erro",
+          description: "Erro ao atualizar ambiente. Tente novamente.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Sucesso",
+        description: `Ambiente "${editForm.nome}" atualizado com sucesso.`,
+      });
+
+      setEditDialogOpen(false);
+      setEditingAmbiente(null);
+      fetchAmbientes();
+    } catch (error) {
+      console.error('Error updating ambiente:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar ambiente. Tente novamente.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -249,7 +317,11 @@ export default function Ambientes() {
                               <Button variant="ghost" size="sm">
                                 <Eye className="w-4 h-4" />
                               </Button>
-                              <Button variant="ghost" size="sm">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleEditClick(ambiente)}
+                              >
                                 <Edit className="w-4 h-4" />
                               </Button>
                               <AlertDialog>
@@ -299,6 +371,56 @@ export default function Ambientes() {
           />
         </TabsContent>
       </Tabs>
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Editar Ambiente</DialogTitle>
+            <DialogDescription>
+              Atualize as informações do ambiente abaixo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="nome">Nome</Label>
+              <Input
+                id="nome"
+                value={editForm.nome}
+                onChange={(e) => setEditForm({ ...editForm, nome: e.target.value })}
+                placeholder="Nome do ambiente"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="bloco">Bloco</Label>
+              <Input
+                id="bloco"
+                value={editForm.bloco}
+                onChange={(e) => setEditForm({ ...editForm, bloco: e.target.value })}
+                placeholder="Bloco do ambiente"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="descricao">Descrição</Label>
+              <Textarea
+                id="descricao"
+                value={editForm.descricao}
+                onChange={(e) => setEditForm({ ...editForm, descricao: e.target.value })}
+                placeholder="Descrição do ambiente"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleUpdateAmbiente}>
+              Salvar Alterações
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
