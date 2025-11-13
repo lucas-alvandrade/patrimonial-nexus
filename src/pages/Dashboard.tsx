@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
@@ -23,9 +23,12 @@ export default function Dashboard() {
     itensLocalizados: 0,
     totalBens: 0
   });
+  const [userItemsData, setUserItemsData] = useState<any[]>([]);
+  const [userEnvironmentsData, setUserEnvironmentsData] = useState<any[]>([]);
 
   useEffect(() => {
     fetchDashboardData();
+    fetchUserActivityData();
   }, []);
 
   const fetchDashboardData = async () => {
@@ -88,6 +91,76 @@ export default function Dashboard() {
       });
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
+    }
+  };
+
+  const fetchUserActivityData = async () => {
+    try {
+      // Buscar itens inventariados por usuário
+      const { data: itemsData, error: itemsError } = await supabase
+        .from('inventarios')
+        .select(`
+          concluido_por,
+          usuarios!inventarios_concluido_por_fkey(nome),
+          inventario_itens(id)
+        `)
+        .not('concluido_por', 'is', null);
+
+      if (itemsError) throw itemsError;
+
+      // Agrupar itens por usuário
+      const itemsByUser = itemsData?.reduce((acc: any, inv: any) => {
+        const userName = inv.usuarios?.nome || 'Desconhecido';
+        if (!acc[userName]) {
+          acc[userName] = 0;
+        }
+        acc[userName] += inv.inventario_itens?.length || 0;
+        return acc;
+      }, {});
+
+      const itemsChartData = Object.entries(itemsByUser || {}).map(([name, count]) => ({
+        name,
+        itens: count
+      }));
+
+      setUserItemsData(itemsChartData);
+
+      // Buscar ambientes por usuário com status
+      const { data: envsData, error: envsError } = await supabase
+        .from('inventarios')
+        .select(`
+          usuario_responsavel,
+          status,
+          ambientes(nome),
+          usuarios!inventarios_usuario_responsavel_fkey(nome)
+        `)
+        .not('usuario_responsavel', 'is', null);
+
+      if (envsError) throw envsError;
+
+      // Agrupar ambientes por usuário e status
+      const envsByUser = envsData?.reduce((acc: any, inv: any) => {
+        const userName = inv.usuarios?.nome || 'Desconhecido';
+        if (!acc[userName]) {
+          acc[userName] = { em_andamento: 0, concluido: 0 };
+        }
+        if (inv.status === 'em_andamento') {
+          acc[userName].em_andamento += 1;
+        } else if (inv.status === 'concluido') {
+          acc[userName].concluido += 1;
+        }
+        return acc;
+      }, {});
+
+      const envsChartData = Object.entries(envsByUser || {}).map(([name, counts]: [string, any]) => ({
+        name,
+        'Em Andamento': counts.em_andamento,
+        'Concluído': counts.concluido
+      }));
+
+      setUserEnvironmentsData(envsChartData);
+    } catch (error) {
+      console.error('Error fetching user activity data:', error);
     }
   };
 
