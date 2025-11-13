@@ -12,6 +12,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { 
   Search, 
   Users, 
@@ -23,6 +39,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 interface Usuario {
   id: number;
@@ -40,6 +57,13 @@ export default function Usuarios() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [newUser, setNewUser] = useState({
+    nome: "",
+    email: "",
+    ldap_id: "",
+    role: "user" as "admin" | "user"
+  });
 
   useEffect(() => {
     if (!authLoading && isAdmin) {
@@ -69,6 +93,38 @@ export default function Usuarios() {
       setError('Erro inesperado ao carregar usuários');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCreateUser = async () => {
+    if (!newUser.nome || !newUser.email || !newUser.ldap_id) {
+      toast.error("Por favor, preencha todos os campos");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('usuarios')
+        .insert([{
+          nome: newUser.nome,
+          email: newUser.email,
+          ldap_id: newUser.ldap_id,
+          role: newUser.role
+        }]);
+
+      if (error) {
+        console.error('Error creating user:', error);
+        toast.error("Erro ao criar usuário");
+        return;
+      }
+
+      toast.success("Usuário criado com sucesso");
+      setDialogOpen(false);
+      setNewUser({ nome: "", email: "", ldap_id: "", role: "user" });
+      fetchUsuarios();
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error("Erro inesperado ao criar usuário");
     }
   };
 
@@ -293,6 +349,73 @@ export default function Usuarios() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Dialog para criar usuário */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Criar Novo Usuário</DialogTitle>
+            <DialogDescription>
+              Preencha os dados do novo usuário interno
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="nome">Nome</Label>
+              <Input
+                id="nome"
+                value={newUser.nome}
+                onChange={(e) => setNewUser({ ...newUser, nome: e.target.value })}
+                placeholder="Nome completo"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={newUser.email}
+                onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                placeholder="email@exemplo.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ldap_id">LDAP ID</Label>
+              <Input
+                id="ldap_id"
+                value={newUser.ldap_id}
+                onChange={(e) => setNewUser({ ...newUser, ldap_id: e.target.value })}
+                placeholder="ID do usuário"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="role">Função</Label>
+              <Select
+                value={newUser.role}
+                onValueChange={(value: "admin" | "user") => 
+                  setNewUser({ ...newUser, role: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">Usuário</SelectItem>
+                  <SelectItem value="admin">Administrador</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateUser}>
+              Criar Usuário
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
