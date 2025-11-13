@@ -209,7 +209,7 @@ export default function Usuarios() {
             Gerencie todos os usuários e suas responsabilidades
           </p>
         </div>
-        <Button className="shadow-primary">
+        <Button className="shadow-primary" onClick={() => setDialogOpen(true)}>
           <Plus className="w-4 h-4 mr-2" />
           Novo Usuário
         </Button>

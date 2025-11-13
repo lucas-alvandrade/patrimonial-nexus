@@ -285,58 +285,61 @@ export default function Dashboard() {
       </div>
 
       {/* Atividades Recentes */}
-      <div className="grid gap-6">
-        {/* Recent Activities */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-primary" />
-              Atividades Recentes
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentActivities.map((activity) => (
-                <div key={activity.id} className="flex items-start space-x-3 p-3 rounded-lg bg-muted/50 transition-smooth hover:bg-muted">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                    activity.type === 'allocation' ? 'bg-primary-light' :
-                    activity.type === 'creation' ? 'bg-success-light' :
-                    'bg-warning-light'
-                  }`}>
-                    {activity.type === 'allocation' && <MapPin className="w-4 h-4 text-primary" />}
-                    {activity.type === 'creation' && <Plus className="w-4 h-4 text-success" />}
-                    {activity.type === 'update' && <CheckCircle className="w-4 h-4 text-warning" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground">
-                      {activity.action}
-                    </p>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {activity.item}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs text-muted-foreground">
-                        por {activity.user}
-                      </span>
-                      {activity.environment !== "-" && (
-                        <>
-                          <span className="text-xs text-muted-foreground">•</span>
-                          <span className="text-xs text-muted-foreground">
-                            {activity.environment}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {activity.time}
-                  </div>
-                </div>
-              ))}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-primary" />
+            Atividades Recentes
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Gráfico 1: Itens Inventariados por Usuário */}
+            <div>
+              <h3 className="text-lg font-semibold mb-4 text-foreground">
+                Itens Inventariados por Usuário
+              </h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={userItemsData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis 
+                    dataKey="name" 
+                    angle={-45}
+                    textAnchor="end"
+                    height={100}
+                  />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="itens" fill="#3b82f6" />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+
+            {/* Gráfico 2: Ambientes por Usuário e Status */}
+            <div>
+              <h3 className="text-lg font-semibold mb-4 text-foreground">
+                Ambientes por Usuário
+              </h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={userEnvironmentsData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis 
+                    dataKey="name" 
+                    angle={-45}
+                    textAnchor="end"
+                    height={100}
+                  />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="Em Andamento" fill="#eab308" />
+                  <Bar dataKey="Concluído" fill="#22c55e" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

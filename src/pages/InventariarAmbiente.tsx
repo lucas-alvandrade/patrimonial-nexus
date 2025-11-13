@@ -115,9 +115,29 @@ export default function InventariarAmbiente() {
 
       // Se não existe, criar um novo
       if (!inventario) {
+        // Buscar o usuário atual
+        const { data: { user } } = await supabase.auth.getUser();
+        let usuarioId = null;
+
+        if (user) {
+          const ldapId = user.user_metadata?.ldap_id;
+          if (ldapId) {
+            const { data: usuarioData } = await supabase
+              .from('usuarios')
+              .select('id')
+              .eq('ldap_id', ldapId)
+              .single();
+            
+            usuarioId = usuarioData?.id || null;
+          }
+        }
+
         const { data: newInventario, error: createError } = await supabase
           .from('inventarios')
-          .insert({ ambiente_id: Number(id) })
+          .insert({ 
+            ambiente_id: Number(id),
+            usuario_responsavel: usuarioId
+          })
           .select()
           .single();
 
