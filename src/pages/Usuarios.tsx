@@ -58,10 +58,13 @@ export default function Usuarios() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<Usuario | null>(null);
+  const [newPassword, setNewPassword] = useState("");
   const [newUser, setNewUser] = useState({
     nome: "",
     email: "",
-    ldap_id: "",
+    senha: "",
     role: "user" as "admin" | "user"
   });
 
@@ -97,34 +100,98 @@ export default function Usuarios() {
   };
 
   const handleCreateUser = async () => {
-    if (!newUser.nome || !newUser.email || !newUser.ldap_id) {
+    if (!newUser.nome || !newUser.email || !newUser.senha) {
       toast.error("Por favor, preencha todos os campos");
       return;
     }
 
-    try {
-      const { error } = await supabase
-        .from('usuarios')
-        .insert([{
-          nome: newUser.nome,
-          email: newUser.email,
-          ldap_id: newUser.ldap_id,
-          role: newUser.role
-        }]);
+    if (newUser.senha.length < 6) {
+      toast.error("A senha deve ter no mínimo 6 caracteres");
+      return;
+    }
 
-      if (error) {
-        console.error('Error creating user:', error);
-        toast.error("Erro ao criar usuário");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await fetch(
+        `https://bqwaasdjpxlucgsknryp.supabase.co/functions/v1/manage-user`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`
+          },
+          body: JSON.stringify({
+            action: 'create',
+            nome: newUser.nome,
+            email: newUser.email,
+            senha: newUser.senha,
+            role: newUser.role
+          })
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        toast.error(result.error || "Erro ao criar usuário");
         return;
       }
 
       toast.success("Usuário criado com sucesso");
       setDialogOpen(false);
-      setNewUser({ nome: "", email: "", ldap_id: "", role: "user" });
+      setNewUser({ nome: "", email: "", senha: "", role: "user" });
       fetchUsuarios();
     } catch (error) {
       console.error('Error:', error);
       toast.error("Erro inesperado ao criar usuário");
+    }
+  };
+
+  const handleUpdatePassword = async () => {
+    if (!selectedUser || !newPassword) {
+      toast.error("Por favor, preencha a nova senha");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast.error("A senha deve ter no mínimo 6 caracteres");
+      return;
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await fetch(
+        `https://bqwaasdjpxlucgsknryp.supabase.co/functions/v1/manage-user`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`
+          },
+          body: JSON.stringify({
+            action: 'update_password',
+            email: selectedUser.email,
+            senha: newPassword
+          })
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        toast.error(result.error || "Erro ao atualizar senha");
+        return;
+      }
+
+      toast.success("Senha atualizada com sucesso");
+      setEditDialogOpen(false);
+      setSelectedUser(null);
+      setNewPassword("");
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error("Erro inesperado ao atualizar senha");
     }
   };
 
@@ -338,8 +405,15 @@ export default function Usuarios() {
                       {new Date(usuario.created_at).toLocaleDateString('pt-BR')}
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="sm">
-                        Editar
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => {
+                          setSelectedUser(usuario);
+                          setEditDialogOpen(true);
+                        }}
+                      >
+                        Alterar Senha
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -356,7 +430,7 @@ export default function Usuarios() {
           <DialogHeader>
             <DialogTitle>Criar Novo Usuário</DialogTitle>
             <DialogDescription>
-              Preencha os dados do novo usuário interno
+              Preencha os dados do novo usuário
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -380,12 +454,13 @@ export default function Usuarios() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="ldap_id">LDAP ID</Label>
+              <Label htmlFor="senha">Senha</Label>
               <Input
-                id="ldap_id"
-                value={newUser.ldap_id}
-                onChange={(e) => setNewUser({ ...newUser, ldap_id: e.target.value })}
-                placeholder="ID do usuário"
+                id="senha"
+                type="password"
+                value={newUser.senha}
+                onChange={(e) => setNewUser({ ...newUser, senha: e.target.value })}
+                placeholder="Mínimo 6 caracteres"
               />
             </div>
             <div className="space-y-2">
@@ -412,6 +487,42 @@ export default function Usuarios() {
             </Button>
             <Button onClick={handleCreateUser}>
               Criar Usuário
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para alterar senha */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Alterar Senha</DialogTitle>
+            <DialogDescription>
+              Alterar senha de {selectedUser?.nome}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="new_password">Nova Senha</Label>
+              <Input
+                id="new_password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Mínimo 6 caracteres"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setEditDialogOpen(false);
+              setSelectedUser(null);
+              setNewPassword("");
+            }}>
+              Cancelar
+            </Button>
+            <Button onClick={handleUpdatePassword}>
+              Atualizar Senha
             </Button>
           </DialogFooter>
         </DialogContent>
