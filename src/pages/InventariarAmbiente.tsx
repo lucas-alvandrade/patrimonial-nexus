@@ -126,7 +126,7 @@ export default function InventariarAmbiente() {
               .from('usuarios')
               .select('id')
               .eq('ldap_id', ldapId)
-              .single();
+              .maybeSingle();
             
             usuarioId = usuarioData?.id || null;
           }
@@ -141,7 +141,10 @@ export default function InventariarAmbiente() {
           .select()
           .single();
 
-        if (createError) throw createError;
+        if (createError) {
+          console.error('Error creating inventario:', createError);
+          throw createError;
+        }
         inventario = newInventario;
       }
 
