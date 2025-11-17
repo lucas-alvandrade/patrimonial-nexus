@@ -119,6 +119,90 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return true;
       }
 
+      // Try LDAP authentication
+      const response = await fetch(
+        'https://bqwaasdjpxlucgsknryp.supabase.co/functions/v1/ldap-auth',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJxd2Fhc2RqcHhsdWNnc2tucnlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc2OTQ0NDksImV4cCI6MjA3MzI3MDQ0OX0.7edknT33F4_EOQXU3-PlbBqmt6G1TDXaDA8EkiUas6s`,
+          },
+          body: JSON.stringify({
+            ldapId: username,
+            password: password,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.success && data.user) {
+        const ldapUser = data.user;
+        const isAdmin = data.isAdmin || false;
+
+        // Sign in with Supabase Auth using password
+        const email = ldapUser.mail || `${ldapUser.uid}@company.com`;
+        
+        // Try to sign in first
+        let authResult = await supabase.auth.signInWithPassword({
+          email: email,
+          password: password,
+        });
+
+        // If sign in fails, create the user
+        if (authResult.error) {
+          const signUpResult = await supabase.auth.signUp({
+            email: email,
+            password: password,
+            options: {
+              data: {
+                ldap_id: ldapUser.uid,
+                display_name: ldapUser.displayName || `User ${ldapUser.uid}`,
+              },
+            },
+          });
+
+          if (signUpResult.error) {
+            console.error('Error creating user:', signUpResult.error);
+            return false;
+          }
+
+          authResult = signUpResult;
+        }
+
+        if (authResult.data.user) {
+          // Ensure user exists in usuarios table
+          const { data: existingUser } = await supabase
+            .from('usuarios')
+            .select('id')
+            .eq('ldap_id', ldapUser.uid)
+            .maybeSingle();
+
+          if (!existingUser) {
+            // Create user in usuarios table
+            const { error: insertError } = await supabase
+              .from('usuarios')
+              .insert({
+                ldap_id: ldapUser.uid,
+                nome: ldapUser.displayName || `User ${ldapUser.uid}`,
+                email: email,
+                role: isAdmin ? 'admin' : 'user',
+              });
+
+            if (insertError) {
+              console.error('Error creating user in usuarios table:', insertError);
+            }
+          }
+
+          setUser(authResult.data.user);
+          setSession(authResult.data.session);
+          setUserRole(isAdmin ? 'admin' : 'user');
+
+          return true;
+        }
+      }
+
       return false;
     } catch (error) {
       console.error('Login error:', error);
