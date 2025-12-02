@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
@@ -23,12 +23,9 @@ export default function Dashboard() {
     itensLocalizados: 0,
     totalBens: 0
   });
-  const [userItemsData, setUserItemsData] = useState<any[]>([]);
-  const [userEnvironmentsData, setUserEnvironmentsData] = useState<any[]>([]);
 
   useEffect(() => {
     fetchDashboardData();
-    fetchUserActivityData();
   }, []);
 
   const fetchDashboardData = async () => {
@@ -91,76 +88,6 @@ export default function Dashboard() {
       });
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
-    }
-  };
-
-  const fetchUserActivityData = async () => {
-    try {
-      // Buscar itens inventariados por usuário
-      const { data: itemsData, error: itemsError } = await supabase
-        .from('inventarios')
-        .select(`
-          concluido_por,
-          usuarios!inventarios_concluido_por_fkey(nome),
-          inventario_itens(id)
-        `)
-        .not('concluido_por', 'is', null);
-
-      if (itemsError) throw itemsError;
-
-      // Agrupar itens por usuário
-      const itemsByUser = itemsData?.reduce((acc: any, inv: any) => {
-        const userName = inv.usuarios?.nome || 'Desconhecido';
-        if (!acc[userName]) {
-          acc[userName] = 0;
-        }
-        acc[userName] += inv.inventario_itens?.length || 0;
-        return acc;
-      }, {});
-
-      const itemsChartData = Object.entries(itemsByUser || {}).map(([name, count]) => ({
-        name,
-        itens: count
-      }));
-
-      setUserItemsData(itemsChartData);
-
-      // Buscar ambientes por usuário com status
-      const { data: envsData, error: envsError } = await supabase
-        .from('inventarios')
-        .select(`
-          usuario_responsavel,
-          status,
-          ambientes(nome),
-          usuarios!inventarios_usuario_responsavel_fkey(nome)
-        `)
-        .not('usuario_responsavel', 'is', null);
-
-      if (envsError) throw envsError;
-
-      // Agrupar ambientes por usuário e status
-      const envsByUser = envsData?.reduce((acc: any, inv: any) => {
-        const userName = inv.usuarios?.nome || 'Desconhecido';
-        if (!acc[userName]) {
-          acc[userName] = { em_andamento: 0, concluido: 0 };
-        }
-        if (inv.status === 'em_andamento') {
-          acc[userName].em_andamento += 1;
-        } else if (inv.status === 'concluido') {
-          acc[userName].concluido += 1;
-        }
-        return acc;
-      }, {});
-
-      const envsChartData = Object.entries(envsByUser || {}).map(([name, counts]: [string, any]) => ({
-        name,
-        'Em Andamento': counts.em_andamento,
-        'Concluído': counts.concluido
-      }));
-
-      setUserEnvironmentsData(envsChartData);
-    } catch (error) {
-      console.error('Error fetching user activity data:', error);
     }
   };
 
@@ -285,61 +212,58 @@ export default function Dashboard() {
       </div>
 
       {/* Atividades Recentes */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-primary" />
-            Atividades Recentes
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-6 md:grid-cols-2">
-            {/* Gráfico 1: Itens Inventariados por Usuário */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4 text-foreground">
-                Itens Inventariados por Usuário
-              </h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={userItemsData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="name" 
-                    angle={-45}
-                    textAnchor="end"
-                    height={100}
-                  />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="itens" fill="#3b82f6" />
-                </BarChart>
-              </ResponsiveContainer>
+      <div className="grid gap-6">
+        {/* Recent Activities */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-primary" />
+              Atividades Recentes
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {recentActivities.map((activity) => (
+                <div key={activity.id} className="flex items-start space-x-3 p-3 rounded-lg bg-muted/50 transition-smooth hover:bg-muted">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                    activity.type === 'allocation' ? 'bg-primary-light' :
+                    activity.type === 'creation' ? 'bg-success-light' :
+                    'bg-warning-light'
+                  }`}>
+                    {activity.type === 'allocation' && <MapPin className="w-4 h-4 text-primary" />}
+                    {activity.type === 'creation' && <Plus className="w-4 h-4 text-success" />}
+                    {activity.type === 'update' && <CheckCircle className="w-4 h-4 text-warning" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">
+                      {activity.action}
+                    </p>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {activity.item}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs text-muted-foreground">
+                        por {activity.user}
+                      </span>
+                      {activity.environment !== "-" && (
+                        <>
+                          <span className="text-xs text-muted-foreground">•</span>
+                          <span className="text-xs text-muted-foreground">
+                            {activity.environment}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {activity.time}
+                  </div>
+                </div>
+              ))}
             </div>
-
-            {/* Gráfico 2: Ambientes por Usuário e Status */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4 text-foreground">
-                Ambientes por Usuário
-              </h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={userEnvironmentsData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="name" 
-                    angle={-45}
-                    textAnchor="end"
-                    height={100}
-                  />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="Em Andamento" fill="#eab308" />
-                  <Bar dataKey="Concluído" fill="#22c55e" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

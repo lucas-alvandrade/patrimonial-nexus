@@ -12,22 +12,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { 
   Search, 
   Users, 
@@ -39,7 +23,6 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { toast } from "sonner";
 
 interface Usuario {
   id: number;
@@ -57,16 +40,6 @@ export default function Usuarios() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<Usuario | null>(null);
-  const [newPassword, setNewPassword] = useState("");
-  const [newUser, setNewUser] = useState({
-    nome: "",
-    email: "",
-    senha: "",
-    role: "user" as "admin" | "user"
-  });
 
   useEffect(() => {
     if (!authLoading && isAdmin) {
@@ -96,102 +69,6 @@ export default function Usuarios() {
       setError('Erro inesperado ao carregar usuários');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleCreateUser = async () => {
-    if (!newUser.nome || !newUser.email || !newUser.senha) {
-      toast.error("Por favor, preencha todos os campos");
-      return;
-    }
-
-    if (newUser.senha.length < 6) {
-      toast.error("A senha deve ter no mínimo 6 caracteres");
-      return;
-    }
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const response = await fetch(
-        `https://bqwaasdjpxlucgsknryp.supabase.co/functions/v1/manage-user`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`
-          },
-          body: JSON.stringify({
-            action: 'create',
-            nome: newUser.nome,
-            email: newUser.email,
-            senha: newUser.senha,
-            role: newUser.role
-          })
-        }
-      );
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        toast.error(result.error || "Erro ao criar usuário");
-        return;
-      }
-
-      toast.success("Usuário criado com sucesso");
-      setDialogOpen(false);
-      setNewUser({ nome: "", email: "", senha: "", role: "user" });
-      fetchUsuarios();
-    } catch (error) {
-      console.error('Error:', error);
-      toast.error("Erro inesperado ao criar usuário");
-    }
-  };
-
-  const handleUpdatePassword = async () => {
-    if (!selectedUser || !newPassword) {
-      toast.error("Por favor, preencha a nova senha");
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      toast.error("A senha deve ter no mínimo 6 caracteres");
-      return;
-    }
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const response = await fetch(
-        `https://bqwaasdjpxlucgsknryp.supabase.co/functions/v1/manage-user`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`
-          },
-          body: JSON.stringify({
-            action: 'update_password',
-            email: selectedUser.email,
-            senha: newPassword
-          })
-        }
-      );
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        toast.error(result.error || "Erro ao atualizar senha");
-        return;
-      }
-
-      toast.success("Senha atualizada com sucesso");
-      setEditDialogOpen(false);
-      setSelectedUser(null);
-      setNewPassword("");
-    } catch (error) {
-      console.error('Error:', error);
-      toast.error("Erro inesperado ao atualizar senha");
     }
   };
 
@@ -276,7 +153,7 @@ export default function Usuarios() {
             Gerencie todos os usuários e suas responsabilidades
           </p>
         </div>
-        <Button className="shadow-primary" onClick={() => setDialogOpen(true)}>
+        <Button className="shadow-primary">
           <Plus className="w-4 h-4 mr-2" />
           Novo Usuário
         </Button>
@@ -405,15 +282,8 @@ export default function Usuarios() {
                       {new Date(usuario.created_at).toLocaleDateString('pt-BR')}
                     </TableCell>
                     <TableCell>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => {
-                          setSelectedUser(usuario);
-                          setEditDialogOpen(true);
-                        }}
-                      >
-                        Alterar Senha
+                      <Button variant="ghost" size="sm">
+                        Editar
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -423,110 +293,6 @@ export default function Usuarios() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Dialog para criar usuário */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Criar Novo Usuário</DialogTitle>
-            <DialogDescription>
-              Preencha os dados do novo usuário
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="nome">Nome</Label>
-              <Input
-                id="nome"
-                value={newUser.nome}
-                onChange={(e) => setNewUser({ ...newUser, nome: e.target.value })}
-                placeholder="Nome completo"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={newUser.email}
-                onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                placeholder="email@exemplo.com"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="senha">Senha</Label>
-              <Input
-                id="senha"
-                type="password"
-                value={newUser.senha}
-                onChange={(e) => setNewUser({ ...newUser, senha: e.target.value })}
-                placeholder="Mínimo 6 caracteres"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="role">Função</Label>
-              <Select
-                value={newUser.role}
-                onValueChange={(value: "admin" | "user") => 
-                  setNewUser({ ...newUser, role: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="user">Usuário</SelectItem>
-                  <SelectItem value="admin">Administrador</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleCreateUser}>
-              Criar Usuário
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog para alterar senha */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Alterar Senha</DialogTitle>
-            <DialogDescription>
-              Alterar senha de {selectedUser?.nome}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="new_password">Nova Senha</Label>
-              <Input
-                id="new_password"
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Mínimo 6 caracteres"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => {
-              setEditDialogOpen(false);
-              setSelectedUser(null);
-              setNewPassword("");
-            }}>
-              Cancelar
-            </Button>
-            <Button onClick={handleUpdatePassword}>
-              Atualizar Senha
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

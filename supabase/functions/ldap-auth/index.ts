@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -75,56 +74,6 @@ serve(async (req) => {
       
       if (isAdminUser) {
         console.log(`Admin user detected: ${ldapId}`);
-      }
-
-      // Create Supabase client with service role to bypass RLS
-      const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-      
-      if (supabaseUrl && supabaseServiceKey) {
-        const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-          auth: {
-            autoRefreshToken: false,
-            persistSession: false
-          }
-        });
-
-        try {
-          // Check if user exists in usuarios table
-          const { data: existingUser, error: checkError } = await supabaseAdmin
-            .from('usuarios')
-            .select('id')
-            .eq('ldap_id', ldapId)
-            .maybeSingle();
-
-          if (checkError) {
-            console.error('Error checking user in usuarios table:', checkError);
-          }
-
-          // If user doesn't exist, create them
-          if (!existingUser) {
-            console.log(`Creating user in usuarios table: ${ldapId}`);
-            
-            const { error: insertError } = await supabaseAdmin
-              .from('usuarios')
-              .insert({
-                ldap_id: ldapId,
-                nome: user.displayName,
-                email: user.mail,
-                role: isAdminUser ? 'admin' : 'user',
-              });
-
-            if (insertError) {
-              console.error('Error creating user in usuarios table:', insertError);
-            } else {
-              console.log(`User created successfully in usuarios table: ${ldapId}`);
-            }
-          } else {
-            console.log(`User already exists in usuarios table: ${ldapId}`);
-          }
-        } catch (error) {
-          console.error('Error managing user in database:', error);
-        }
       }
 
       return new Response(
