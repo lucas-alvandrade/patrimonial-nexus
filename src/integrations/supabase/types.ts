@@ -154,6 +154,7 @@ export type Database = {
           id: number
           status: Database["public"]["Enums"]["status_inventario"]
           updated_at: string
+          usuario_responsavel: number | null
         }
         Insert: {
           ambiente_id: number
@@ -163,6 +164,7 @@ export type Database = {
           id?: number
           status?: Database["public"]["Enums"]["status_inventario"]
           updated_at?: string
+          usuario_responsavel?: number | null
         }
         Update: {
           ambiente_id?: number
@@ -172,6 +174,7 @@ export type Database = {
           id?: number
           status?: Database["public"]["Enums"]["status_inventario"]
           updated_at?: string
+          usuario_responsavel?: number | null
         }
         Relationships: [
           {
@@ -184,6 +187,13 @@ export type Database = {
           {
             foreignKeyName: "inventarios_concluido_por_fkey"
             columns: ["concluido_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventarios_usuario_responsavel_fkey"
+            columns: ["usuario_responsavel"]
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
@@ -256,13 +266,10 @@ export type Database = {
     }
     Functions: {
       get_current_user_role: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
-      is_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      is_admin: { Args: never; Returns: boolean }
     }
     Enums: {
       status_inventario: "nao_iniciado" | "em_andamento" | "concluido"
