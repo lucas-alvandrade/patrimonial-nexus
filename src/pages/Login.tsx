@@ -27,7 +27,7 @@ const Login = () => {
       if (success) {
         navigate("/");
       } else {
-        setError("Credenciais inválidas");
+        setError("Usuário ou senha inválidos");
       }
     } catch (err) {
       setError("Erro interno. Tente novamente.");
@@ -52,13 +52,13 @@ const Login = () => {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Usuário</Label>
+              <Label htmlFor="username">Nome do Usuário</Label>
               <div className="relative">
                 <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="username"
                   type="text"
-                  placeholder="Digite seu usuário"
+                  placeholder="Digite seu nome de usuário"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="pl-10"

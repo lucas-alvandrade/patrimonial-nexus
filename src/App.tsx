@@ -10,7 +10,6 @@ import Bens from "./pages/Bens";
 import Ambientes from "./pages/Ambientes";
 import Usuarios from "./pages/Usuarios";
 import Relatorios from "./pages/Relatorios";
-import Configuracoes from "./pages/Configuracoes";
 import Inventariar from "./pages/Inventariar";
 import InventariarAmbiente from "./pages/InventariarAmbiente";
 import Login from "./pages/Login";
@@ -33,7 +32,6 @@ const App = () => (
               <Route path="ambientes" element={<Ambientes />} />
               <Route path="usuarios" element={<Usuarios />} />
               <Route path="relatorios" element={<Relatorios />} />
-              <Route path="configuracoes" element={<Configuracoes />} />
               <Route path="inventariar" element={<Inventariar />} />
               <Route path="inventariar/:id" element={<InventariarAmbiente />} />
             </Route>
