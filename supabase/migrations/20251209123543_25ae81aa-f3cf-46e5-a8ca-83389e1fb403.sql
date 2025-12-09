@@ -1,0 +1,1 @@
+INSERT INTO public.usuarios (nome, role, senha) VALUES ('admin', 'admin', '123456');
