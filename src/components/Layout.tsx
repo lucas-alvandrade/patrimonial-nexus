@@ -9,8 +9,6 @@ import {
   BarChart3,
   Menu,
   X,
-  MapPin,
-  Settings,
   Home,
   LogOut,
   User
@@ -29,7 +27,6 @@ const adminNavigation = [
   { name: "Ambientes", href: "/ambientes", icon: Building2 },
   { name: "Usuários", href: "/usuarios", icon: Users },
   { name: "Relatórios", href: "/relatorios", icon: BarChart3 },
-  { name: "Configurações", href: "/configuracoes", icon: Settings },
 ];
 
 export default function Layout() {
@@ -94,9 +91,9 @@ export default function Layout() {
                 to={item.href}
                 onClick={() => setSidebarOpen(false)}
                 className={cn(
-                  "flex items-center space-x-3 px-4 py-3 text-sm font-medium rounded-lg transition-smooth",
+                  "flex items-center space-x-3 px-4 py-3 text-sm font-medium rounded-lg transition-all",
                   isActive
-                    ? "bg-primary text-primary-foreground shadow-primary"
+                    ? "bg-primary text-primary-foreground shadow-md"
                     : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 )}
               >
@@ -120,9 +117,9 @@ export default function Layout() {
                     to={item.href}
                     onClick={() => setSidebarOpen(false)}
                     className={cn(
-                      "flex items-center space-x-3 px-4 py-3 text-sm font-medium rounded-lg transition-smooth",
+                      "flex items-center space-x-3 px-4 py-3 text-sm font-medium rounded-lg transition-all",
                       isActive
-                        ? "bg-primary text-primary-foreground shadow-primary"
+                        ? "bg-primary text-primary-foreground shadow-md"
                         : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                     )}
                   >
@@ -139,7 +136,7 @@ export default function Layout() {
         <div className="mt-auto p-4 border-t border-border lg:hidden">
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
             <User className="h-4 w-4" />
-            <span className="truncate">{user.email}</span>
+            <span className="truncate">{user.nome}</span>
           </div>
           <Button
             variant="ghost"
@@ -169,7 +166,7 @@ export default function Layout() {
             <OnlineStatusIndicator />
             <div className="hidden lg:flex items-center gap-2 text-sm text-muted-foreground">
               <User className="h-4 w-4" />
-              <span>{user.email}</span>
+              <span>{user.nome}</span>
             </div>
             <Button 
               variant="ghost" 

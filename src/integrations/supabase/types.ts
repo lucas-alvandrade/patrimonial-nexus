@@ -233,29 +233,32 @@ export type Database = {
       usuarios: {
         Row: {
           created_at: string
-          email: string
+          email: string | null
           id: number
-          ldap_id: string
+          ldap_id: string | null
           nome: string
           role: Database["public"]["Enums"]["user_role"]
+          senha: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
-          email: string
+          email?: string | null
           id?: never
-          ldap_id: string
+          ldap_id?: string | null
           nome: string
           role?: Database["public"]["Enums"]["user_role"]
+          senha?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
-          email?: string
+          email?: string | null
           id?: never
-          ldap_id?: string
+          ldap_id?: string | null
           nome?: string
           role?: Database["public"]["Enums"]["user_role"]
+          senha?: string | null
           updated_at?: string
         }
         Relationships: []
