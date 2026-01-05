@@ -44,17 +44,98 @@ export default function Relatorios() {
     );
   }
 
-  const gerarRelatorioItensLocalizados = async () => {
-    try {
-      const { data: inventarioItens, error } = await supabase
-        .from("inventario_itens")
-        .select(`
-          patrimonio,
-          descricao,
-          inventario_id
-        `);
+  // Helper function to fetch all rows from a table (bypasses 1000 row limit)
+  const fetchAllBens = async () => {
+    const allRows: {
+      numero_patrimonio: string;
+      descricao: string | null;
+      carga_atual: string | null;
+      setor_responsavel: string | null;
+      valor: number | null;
+    }[] = [];
+    const pageSize = 1000;
+    let from = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from("bens")
+        .select("numero_patrimonio, descricao, carga_atual, setor_responsavel, valor")
+        .range(from, from + pageSize - 1);
 
       if (error) throw error;
+
+      if (data && data.length > 0) {
+        allRows.push(...data);
+        from += pageSize;
+        hasMore = data.length === pageSize;
+      } else {
+        hasMore = false;
+      }
+    }
+
+    return allRows;
+  };
+
+  const fetchAllInventarioItens = async () => {
+    const allRows: {
+      patrimonio: string;
+      descricao: string;
+      inventario_id: number;
+    }[] = [];
+    const pageSize = 1000;
+    let from = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from("inventario_itens")
+        .select("patrimonio, descricao, inventario_id")
+        .range(from, from + pageSize - 1);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        allRows.push(...data);
+        from += pageSize;
+        hasMore = data.length === pageSize;
+      } else {
+        hasMore = false;
+      }
+    }
+
+    return allRows;
+  };
+
+  const fetchAllPatrimoniosLocalizados = async () => {
+    const allRows: { patrimonio: string }[] = [];
+    const pageSize = 1000;
+    let from = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from("inventario_itens")
+        .select("patrimonio")
+        .range(from, from + pageSize - 1);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        allRows.push(...data);
+        from += pageSize;
+        hasMore = data.length === pageSize;
+      } else {
+        hasMore = false;
+      }
+    }
+
+    return allRows;
+  };
+
+  const gerarRelatorioItensLocalizados = async () => {
+    try {
+      const inventarioItens = await fetchAllInventarioItens();
 
       // Buscar dados dos bens para cada item
       const itensComDetalhes = await Promise.all(
@@ -63,14 +144,14 @@ export default function Relatorios() {
             .from("bens")
             .select("carga_atual, setor_responsavel, valor")
             .eq("numero_patrimonio", item.patrimonio)
-            .single();
+            .maybeSingle();
 
           // Buscar ambiente através do inventário
           const { data: inventario } = await supabase
             .from("inventarios")
             .select("ambiente_id")
             .eq("id", item.inventario_id)
-            .single();
+            .maybeSingle();
 
           let nomeAmbiente = "";
           if (inventario) {
@@ -78,7 +159,7 @@ export default function Relatorios() {
               .from("ambientes")
               .select("nome")
               .eq("id", inventario.ambiente_id)
-              .single();
+              .maybeSingle();
             nomeAmbiente = ambiente?.nome || "";
           }
 
@@ -99,7 +180,7 @@ export default function Relatorios() {
       XLSX.utils.book_append_sheet(wb, ws, "Itens Localizados");
       XLSX.writeFile(wb, "relatorio_itens_localizados.xlsx");
 
-      toast.success("Relatório de itens localizados gerado com sucesso!");
+      toast.success(`Relatório gerado com ${itensComDetalhes.length} itens localizados!`);
     } catch (error) {
       console.error("Erro ao gerar relatório:", error);
       toast.error("Erro ao gerar relatório de itens localizados");
@@ -108,19 +189,11 @@ export default function Relatorios() {
 
   const gerarRelatorioItensNaoLocalizados = async () => {
     try {
-      // Buscar todos os bens
-      const { data: bens, error: bensError } = await supabase
-        .from("bens")
-        .select("numero_patrimonio, descricao, carga_atual, setor_responsavel, valor");
+      // Buscar todos os bens (com paginação)
+      const bens = await fetchAllBens();
 
-      if (bensError) throw bensError;
-
-      // Buscar todos os patrimônios localizados
-      const { data: itensLocalizados, error: itensError } = await supabase
-        .from("inventario_itens")
-        .select("patrimonio");
-
-      if (itensError) throw itensError;
+      // Buscar todos os patrimônios localizados (com paginação)
+      const itensLocalizados = await fetchAllPatrimoniosLocalizados();
 
       const patrimoniosLocalizados = new Set(
         itensLocalizados.map((item) => item.patrimonio)
@@ -143,7 +216,7 @@ export default function Relatorios() {
       XLSX.utils.book_append_sheet(wb, ws, "Itens Não Localizados");
       XLSX.writeFile(wb, "relatorio_itens_nao_localizados.xlsx");
 
-      toast.success("Relatório de itens não localizados gerado com sucesso!");
+      toast.success(`Relatório gerado com ${itensNaoLocalizados.length} itens não localizados!`);
     } catch (error) {
       console.error("Erro ao gerar relatório:", error);
       toast.error("Erro ao gerar relatório de itens não localizados");
