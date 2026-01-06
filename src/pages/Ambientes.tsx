@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,13 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -62,6 +69,20 @@ export default function Ambientes() {
     bloco: '',
     descricao: ''
   });
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [addForm, setAddForm] = useState({
+    nome: '',
+    bloco: '',
+    descricao: ''
+  });
+
+  // Extract unique blocos from existing ambientes
+  const uniqueBlocos = useMemo(() => {
+    const blocos = ambientes
+      .map(a => a.bloco)
+      .filter((bloco): bloco is string => !!bloco && bloco.trim() !== '');
+    return [...new Set(blocos)].sort();
+  }, [ambientes]);
 
   const fetchAmbientes = async () => {
     try {
@@ -129,6 +150,63 @@ export default function Ambientes() {
       toast({
         title: "Erro",
         description: "Erro ao atualizar ambiente. Tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCreateAmbiente = async () => {
+    if (!addForm.nome.trim()) {
+      toast({
+        title: "Erro",
+        description: "O nome do ambiente é obrigatório.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Get the max ID to generate the next one
+      const { data: maxIdData } = await supabase
+        .from('ambientes')
+        .select('id')
+        .order('id', { ascending: false })
+        .limit(1);
+
+      const nextId = maxIdData && maxIdData.length > 0 ? maxIdData[0].id + 1 : 1;
+
+      const { error } = await supabase
+        .from('ambientes')
+        .insert({
+          id: nextId,
+          nome: addForm.nome.trim(),
+          bloco: addForm.bloco.trim() || null,
+          descricao: addForm.descricao.trim() || null
+        } as any);
+
+      if (error) {
+        console.error('Error creating ambiente:', error);
+        toast({
+          title: "Erro",
+          description: "Erro ao criar ambiente. Tente novamente.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Sucesso",
+        description: `Ambiente "${addForm.nome}" criado com sucesso.`,
+      });
+
+      setAddDialogOpen(false);
+      setAddForm({ nome: '', bloco: '', descricao: '' });
+      fetchAmbientes();
+    } catch (error) {
+      console.error('Error creating ambiente:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao criar ambiente. Tente novamente.",
         variant: "destructive",
       });
     }
@@ -232,7 +310,7 @@ export default function Ambientes() {
             <Upload className="w-4 h-4 mr-2" />
             Importar
           </Button>
-          <Button className="shadow-primary">
+          <Button className="shadow-primary" onClick={() => setAddDialogOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Novo Ambiente
           </Button>
@@ -417,6 +495,65 @@ export default function Ambientes() {
             </Button>
             <Button onClick={handleUpdateAmbiente}>
               Salvar Alterações
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Dialog */}
+      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Novo Ambiente</DialogTitle>
+            <DialogDescription>
+              Preencha as informações do novo ambiente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="add-nome">Nome *</Label>
+              <Input
+                id="add-nome"
+                value={addForm.nome}
+                onChange={(e) => setAddForm({ ...addForm, nome: e.target.value })}
+                placeholder="Nome do ambiente"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="add-bloco">Bloco</Label>
+              <Select
+                value={addForm.bloco}
+                onValueChange={(value) => setAddForm({ ...addForm, bloco: value })}
+              >
+                <SelectTrigger id="add-bloco">
+                  <SelectValue placeholder="Selecione um bloco" />
+                </SelectTrigger>
+                <SelectContent>
+                  {uniqueBlocos.map((bloco) => (
+                    <SelectItem key={bloco} value={bloco}>
+                      {bloco}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="add-descricao">Descrição</Label>
+              <Textarea
+                id="add-descricao"
+                value={addForm.descricao}
+                onChange={(e) => setAddForm({ ...addForm, descricao: e.target.value })}
+                placeholder="Descrição do ambiente"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateAmbiente}>
+              Criar Ambiente
             </Button>
           </DialogFooter>
         </DialogContent>
