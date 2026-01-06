@@ -107,6 +107,63 @@ export type Database = {
         }
         Relationships: []
       }
+      grupos: {
+        Row: {
+          created_at: string
+          id: number
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      grupos_usuarios: {
+        Row: {
+          created_at: string
+          grupo_id: number
+          id: number
+          usuario_id: number
+        }
+        Insert: {
+          created_at?: string
+          grupo_id: number
+          id?: never
+          usuario_id: number
+        }
+        Update: {
+          created_at?: string
+          grupo_id?: number
+          id?: never
+          usuario_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grupos_usuarios_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grupos_usuarios_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventario_itens: {
         Row: {
           created_at: string
