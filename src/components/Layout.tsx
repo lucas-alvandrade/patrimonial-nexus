@@ -11,7 +11,8 @@ import {
   X,
   Home,
   LogOut,
-  User
+  User,
+  UsersRound
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -26,6 +27,7 @@ const adminNavigation = [
   { name: "Bens", href: "/bens", icon: Package },
   { name: "Ambientes", href: "/ambientes", icon: Building2 },
   { name: "Usuários", href: "/usuarios", icon: Users },
+  { name: "Grupos", href: "/grupos", icon: UsersRound },
   { name: "Relatórios", href: "/relatorios", icon: BarChart3 },
 ];
 
