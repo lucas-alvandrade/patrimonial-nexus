@@ -43,6 +43,7 @@ interface InventarioItem {
   patrimonio: string;
   descricao: string;
   situacao: 'Bom' | 'Inservível';
+  created_at?: string;
 }
 
 interface Ambiente {
@@ -141,7 +142,8 @@ export default function InventariarAmbiente() {
           id: item.id.toString(),
           patrimonio: item.patrimonio,
           descricao: item.descricao,
-          situacao: item.situacao as 'Bom' | 'Inservível'
+          situacao: item.situacao as 'Bom' | 'Inservível',
+          created_at: item.created_at
         }));
         setItems(mappedItems);
       } else {
@@ -306,7 +308,8 @@ export default function InventariarAmbiente() {
             id: itemData.id.toString(),
             patrimonio: currentItem.patrimonio,
             descricao: bem.descricao,
-            situacao: currentItem.situacao
+            situacao: currentItem.situacao,
+            created_at: itemData.created_at
           };
 
           setItems([newItem, ...items]);
@@ -417,7 +420,8 @@ export default function InventariarAmbiente() {
         id: itemData.id.toString(),
         patrimonio: currentItem.patrimonio,
         descricao: currentItem.descricao,
-        situacao: currentItem.situacao
+        situacao: currentItem.situacao,
+        created_at: itemData.created_at
       };
 
       setItems([newItem, ...items]);
@@ -1115,6 +1119,7 @@ export default function InventariarAmbiente() {
                     <TableHead>Patrimônio</TableHead>
                     <TableHead>Descrição</TableHead>
                     <TableHead>Situação</TableHead>
+                    <TableHead>Data/Hora</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1138,6 +1143,17 @@ export default function InventariarAmbiente() {
                         }`}>
                           {item.situacao}
                         </span>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {item.created_at 
+                          ? new Date(item.created_at).toLocaleString('pt-BR', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })
+                          : '-'}
                       </TableCell>
                     </TableRow>
                   ))}
