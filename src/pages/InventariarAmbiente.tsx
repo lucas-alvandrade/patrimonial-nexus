@@ -33,7 +33,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Building2, Plus, Trash2, ArrowLeft, Save, CheckCircle, Unlock, Camera, X } from "lucide-react";
+import { Building2, Plus, Trash2, ArrowLeft, Save, CheckCircle, Unlock, Camera, X, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -51,6 +51,54 @@ interface Ambiente {
   nome: string;
   descricao?: string;
 }
+
+// Função para calcular o tempo total do inventário
+const calculateTotalTime = (items: InventarioItem[], isConcluido: boolean): string => {
+  if (items.length === 0 && isConcluido) {
+    return "1 min";
+  }
+  
+  if (items.length === 0) {
+    return "0 min";
+  }
+  
+  if (items.length === 1) {
+    return "1 min";
+  }
+  
+  // Ordenar itens por created_at do mais antigo para o mais recente
+  const sortedItems = [...items].sort((a, b) => {
+    if (!a.created_at || !b.created_at) return 0;
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  });
+  
+  let totalSeconds = 0;
+  
+  // Calcular intervalos entre itens consecutivos
+  for (let i = 1; i < sortedItems.length; i++) {
+    const prevTime = sortedItems[i - 1].created_at;
+    const currTime = sortedItems[i].created_at;
+    
+    if (prevTime && currTime) {
+      const diff = new Date(currTime).getTime() - new Date(prevTime).getTime();
+      totalSeconds += diff / 1000;
+    }
+  }
+  
+  // Converter para formato legível
+  if (totalSeconds < 60) {
+    return "1 min";
+  }
+  
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  
+  if (hours > 0) {
+    return `${hours}h ${minutes}min`;
+  }
+  
+  return `${minutes} min`;
+};
 
 export default function InventariarAmbiente() {
   const { id } = useParams<{ id: string }>();
@@ -1105,7 +1153,13 @@ export default function InventariarAmbiente() {
 
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle>Itens do Inventário ({items.length})</CardTitle>
+            <CardTitle className="flex items-center justify-between">
+              <span>Itens do Inventário ({items.length})</span>
+              <div className="flex items-center gap-2 text-sm font-normal text-muted-foreground">
+                <Clock className="h-4 w-4" />
+                <span>Tempo: {calculateTotalTime(items, isConcluido)}</span>
+              </div>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {items.length === 0 ? (
