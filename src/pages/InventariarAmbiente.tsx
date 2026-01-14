@@ -48,6 +48,7 @@ interface InventarioItem {
   created_at?: string;
   inventariante?: string;
   duplicado?: string;
+  tipo_cadastro?: 'A' | 'M';
 }
 
 interface Ambiente {
@@ -253,7 +254,8 @@ export default function InventariarAmbiente() {
           situacao: item.situacao as 'Bom' | 'Inservível',
           created_at: item.created_at,
           inventariante: (item as any).inventariante || undefined,
-          duplicado: (item as any).duplicado || 'Não'
+          duplicado: (item as any).duplicado || 'Não',
+          tipo_cadastro: ((item as any).tipo_cadastro || 'M') as 'A' | 'M'
         }));
         setItems(mappedItems);
       } else {
@@ -397,7 +399,7 @@ export default function InventariarAmbiente() {
         }
 
         try {
-          // Salvar no banco de dados
+          // Salvar no banco de dados - Automático (A) porque bem existe na tabela bens
           const { data: itemData, error: itemError } = await supabase
             .from('inventario_itens')
             .insert({
@@ -406,7 +408,8 @@ export default function InventariarAmbiente() {
               descricao: bem.descricao,
               situacao: currentItem.situacao,
               inventariante: getInventariante(),
-              duplicado: isDuplicado ? 'Sim' : 'Não'
+              duplicado: isDuplicado ? 'Sim' : 'Não',
+              tipo_cadastro: 'A'
             } as any)
             .select()
             .single();
@@ -430,7 +433,8 @@ export default function InventariarAmbiente() {
             situacao: currentItem.situacao,
             created_at: itemData.created_at,
             inventariante: (itemData as any).inventariante,
-            duplicado: (itemData as any).duplicado
+            duplicado: (itemData as any).duplicado,
+            tipo_cadastro: 'A'
           };
 
           setItems([newItem, ...items]);
@@ -501,7 +505,7 @@ export default function InventariarAmbiente() {
 
     try {
       console.log('Tentando inserir item no banco...');
-      // Salvar no banco de dados
+      // Salvar no banco de dados - Manual (M) porque descrição foi digitada manualmente
       const { data: itemData, error: itemError } = await supabase
         .from('inventario_itens')
         .insert({
@@ -510,7 +514,8 @@ export default function InventariarAmbiente() {
           descricao: currentItem.descricao,
           situacao: currentItem.situacao,
           inventariante: getInventariante(),
-          duplicado: isDuplicado ? 'Sim' : 'Não'
+          duplicado: isDuplicado ? 'Sim' : 'Não',
+          tipo_cadastro: 'M'
         } as any)
         .select()
         .single();
@@ -536,7 +541,8 @@ export default function InventariarAmbiente() {
         situacao: currentItem.situacao,
         created_at: itemData.created_at,
         inventariante: (itemData as any).inventariante,
-        duplicado: (itemData as any).duplicado
+        duplicado: (itemData as any).duplicado,
+        tipo_cadastro: 'M'
       };
 
       setItems([newItem, ...items]);
@@ -741,7 +747,7 @@ export default function InventariarAmbiente() {
       }
 
       try {
-        // Salvar no banco de dados
+        // Salvar no banco de dados - Automático (A) porque bem existe na tabela bens
         const { data: itemData, error: itemError } = await supabase
           .from('inventario_itens')
           .insert({
@@ -750,7 +756,8 @@ export default function InventariarAmbiente() {
             descricao: bem.descricao,
             situacao: currentItem.situacao,
             inventariante: getInventariante(),
-            duplicado: isDuplicado ? 'Sim' : 'Não'
+            duplicado: isDuplicado ? 'Sim' : 'Não',
+            tipo_cadastro: 'A'
           } as any)
           .select()
           .single();
@@ -773,7 +780,8 @@ export default function InventariarAmbiente() {
           descricao: bem.descricao,
           situacao: currentItem.situacao,
           inventariante: (itemData as any).inventariante,
-          duplicado: (itemData as any).duplicado
+          duplicado: (itemData as any).duplicado,
+          tipo_cadastro: 'A'
         };
 
         setItems([...items, newItem]);
@@ -1274,6 +1282,7 @@ export default function InventariarAmbiente() {
                     <TableHead>Patrimônio</TableHead>
                     <TableHead>Descrição</TableHead>
                     <TableHead>Situação</TableHead>
+                    <TableHead>Tipo</TableHead>
                     <TableHead>Duplicado</TableHead>
                     <TableHead>Inventariante</TableHead>
                     <TableHead>Data/Hora</TableHead>
@@ -1290,7 +1299,7 @@ export default function InventariarAmbiente() {
                         selectedItemIndex === index ? null : index
                       )}
                     >
-                      <TableCell className="font-medium">{item.patrimonio}</TableCell>
+                      <TableCell className="font-medium">{item.patrimonio || '-'}</TableCell>
                       <TableCell>{item.descricao}</TableCell>
                       <TableCell>
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -1299,6 +1308,15 @@ export default function InventariarAmbiente() {
                             : 'bg-red-100 text-red-800'
                         }`}>
                           {item.situacao}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          item.tipo_cadastro === 'A' 
+                            ? 'bg-blue-100 text-blue-800' 
+                            : 'bg-orange-100 text-orange-800'
+                        }`} title={item.tipo_cadastro === 'A' ? 'Automático - Bem existe no banco de dados' : 'Manual - Cadastrado manualmente'}>
+                          {item.tipo_cadastro || 'M'}
                         </span>
                       </TableCell>
                       <TableCell>
