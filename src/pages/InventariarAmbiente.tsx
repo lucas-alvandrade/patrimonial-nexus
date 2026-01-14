@@ -222,12 +222,16 @@ export default function InventariarAmbiente() {
       const { data, error } = await supabase
         .from('bens')
         .select('descricao')
+        .not('descricao', 'is', null)
         .order('descricao');
 
       if (error) throw error;
       
-      // Extrair descrições únicas
-      const uniqueDescricoes = [...new Set(data?.map(b => b.descricao).filter(Boolean) as string[])];
+      // Extrair descrições únicas e garantir que são strings válidas
+      const uniqueDescricoes = [...new Set(
+        data?.map(b => b.descricao?.trim()).filter((d): d is string => Boolean(d && d.length > 0))
+      )];
+      console.log('Descrições carregadas:', uniqueDescricoes.length);
       setDescricoes(uniqueDescricoes);
     } catch (error) {
       console.error('Error fetching descricoes:', error);
@@ -1085,14 +1089,23 @@ export default function InventariarAmbiente() {
                     autoComplete="off"
                     disabled={isConcluido}
                   />
-                  {openDescricao && (
+                  {openDescricao && currentItem.descricao.trim().length > 0 && (
                     <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-[200px] overflow-auto">
-                      {descricoes
-                        .filter(desc => 
-                          desc.toLowerCase().includes(currentItem.descricao.toLowerCase())
-                        )
-                        .slice(0, 10)
-                        .map((descricao, index) => (
+                      {(() => {
+                        const searchTerm = currentItem.descricao.toLowerCase().trim();
+                        const filtered = descricoes.filter(desc => 
+                          desc && desc.toLowerCase().includes(searchTerm)
+                        ).slice(0, 10);
+                        
+                        if (filtered.length === 0) {
+                          return (
+                            <div className="px-3 py-2 text-sm text-muted-foreground">
+                              Nenhuma sugestão encontrada
+                            </div>
+                          );
+                        }
+                        
+                        return filtered.map((descricao, index) => (
                           <div
                             key={index}
                             className="px-3 py-2 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground"
@@ -1104,7 +1117,8 @@ export default function InventariarAmbiente() {
                           >
                             {descricao}
                           </div>
-                        ))}
+                        ));
+                      })()}
                     </div>
                   )}
                 </div>
