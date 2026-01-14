@@ -47,6 +47,7 @@ interface InventarioItem {
   situacao: 'Bom' | 'Inservível';
   created_at?: string;
   inventariante?: string;
+  duplicado?: string;
 }
 
 interface Ambiente {
@@ -251,7 +252,8 @@ export default function InventariarAmbiente() {
           descricao: item.descricao,
           situacao: item.situacao as 'Bom' | 'Inservível',
           created_at: item.created_at,
-          inventariante: (item as any).inventariante || undefined
+          inventariante: (item as any).inventariante || undefined,
+          duplicado: (item as any).duplicado || 'Não'
         }));
         setItems(mappedItems);
       } else {
@@ -352,30 +354,25 @@ export default function InventariarAmbiente() {
     }
   };
 
-  const verificarItemDuplicado = async (patrimonio: string) => {
+  const verificarItemDuplicado = async (patrimonio: string): Promise<boolean> => {
     try {
-      // Buscar se o patrimônio já existe em algum inventário
+      // Buscar se o patrimônio já existe em algum outro inventário (não no atual)
       const { data: itemExistente, error } = await supabase
         .from('inventario_itens')
-        .select(`
-          *,
-          inventarios!inner(
-            ambiente_id,
-            ambientes!inner(nome)
-          )
-        `)
+        .select('id, inventario_id')
         .eq('patrimonio', patrimonio)
-        .maybeSingle();
+        .neq('inventario_id', inventarioId || 0)
+        .limit(1);
 
       if (error) {
         console.error('Error checking duplicate:', error);
-        return null;
+        return false;
       }
 
-      return itemExistente;
+      return itemExistente && itemExistente.length > 0;
     } catch (error) {
       console.error('Error checking duplicate:', error);
-      return null;
+      return false;
     }
   };
 
@@ -383,18 +380,8 @@ export default function InventariarAmbiente() {
     if ((e.key === 'Tab' || e.key === 'Enter') && currentItem.patrimonio.trim()) {
       e.preventDefault();
       
-      // Verificar se o item já está cadastrado em algum ambiente
-      const itemDuplicado = await verificarItemDuplicado(currentItem.patrimonio.trim());
-      
-      if (itemDuplicado) {
-        const nomeAmbiente = itemDuplicado.inventarios?.ambientes?.nome || 'outro ambiente';
-        toast({
-          title: "Item duplicado",
-          description: `Este patrimônio já foi cadastrado no ambiente: ${nomeAmbiente}`,
-          variant: "destructive",
-        });
-        return;
-      }
+      // Verificar se o item já está cadastrado em outro ambiente
+      const isDuplicado = await verificarItemDuplicado(currentItem.patrimonio.trim());
       
       const bem = await buscarBemPorPatrimonio(currentItem.patrimonio.trim());
       
@@ -418,7 +405,8 @@ export default function InventariarAmbiente() {
               patrimonio: currentItem.patrimonio,
               descricao: bem.descricao,
               situacao: currentItem.situacao,
-              inventariante: getInventariante()
+              inventariante: getInventariante(),
+              duplicado: isDuplicado ? 'Sim' : 'Não'
             } as any)
             .select()
             .single();
@@ -441,7 +429,8 @@ export default function InventariarAmbiente() {
             descricao: bem.descricao,
             situacao: currentItem.situacao,
             created_at: itemData.created_at,
-            inventariante: (itemData as any).inventariante
+            inventariante: (itemData as any).inventariante,
+            duplicado: (itemData as any).duplicado
           };
 
           setItems([newItem, ...items]);
@@ -488,18 +477,8 @@ export default function InventariarAmbiente() {
       return;
     }
 
-    // Verificar se o item já está cadastrado em algum ambiente
-    const itemDuplicado = await verificarItemDuplicado(currentItem.patrimonio.trim());
-    
-    if (itemDuplicado) {
-      const nomeAmbiente = itemDuplicado.inventarios?.ambientes?.nome || 'outro ambiente';
-      toast({
-        title: "Item duplicado",
-        description: `Este patrimônio já foi cadastrado no ambiente: ${nomeAmbiente}`,
-        variant: "destructive",
-      });
-      return;
-    }
+    // Verificar se o item já está cadastrado em outro ambiente
+    const isDuplicado = await verificarItemDuplicado(currentItem.patrimonio.trim());
 
     if (isConcluido) {
       toast({
@@ -530,7 +509,8 @@ export default function InventariarAmbiente() {
           patrimonio: currentItem.patrimonio,
           descricao: currentItem.descricao,
           situacao: currentItem.situacao,
-          inventariante: getInventariante()
+          inventariante: getInventariante(),
+          duplicado: isDuplicado ? 'Sim' : 'Não'
         } as any)
         .select()
         .single();
@@ -555,7 +535,8 @@ export default function InventariarAmbiente() {
         descricao: currentItem.descricao,
         situacao: currentItem.situacao,
         created_at: itemData.created_at,
-        inventariante: (itemData as any).inventariante
+        inventariante: (itemData as any).inventariante,
+        duplicado: (itemData as any).duplicado
       };
 
       setItems([newItem, ...items]);
@@ -742,19 +723,8 @@ export default function InventariarAmbiente() {
   };
 
   const processarPatrimonioScanner = async (patrimonio: string) => {
-    // Verificar se o item já está cadastrado em algum ambiente
-    const itemDuplicado = await verificarItemDuplicado(patrimonio);
-    
-    if (itemDuplicado) {
-      const nomeAmbiente = itemDuplicado.inventarios?.ambientes?.nome || 'outro ambiente';
-      toast({
-        title: "Item duplicado",
-        description: `Este patrimônio já foi cadastrado no ambiente: ${nomeAmbiente}`,
-        variant: "destructive",
-      });
-      stopBarcodeScanner();
-      return;
-    }
+    // Verificar se o item já está cadastrado em outro ambiente
+    const isDuplicado = await verificarItemDuplicado(patrimonio);
     
     const bem = await buscarBemPorPatrimonio(patrimonio);
     
@@ -779,7 +749,8 @@ export default function InventariarAmbiente() {
             patrimonio: patrimonio,
             descricao: bem.descricao,
             situacao: currentItem.situacao,
-            inventariante: getInventariante()
+            inventariante: getInventariante(),
+            duplicado: isDuplicado ? 'Sim' : 'Não'
           } as any)
           .select()
           .single();
@@ -801,7 +772,8 @@ export default function InventariarAmbiente() {
           patrimonio: patrimonio,
           descricao: bem.descricao,
           situacao: currentItem.situacao,
-          inventariante: (itemData as any).inventariante
+          inventariante: (itemData as any).inventariante,
+          duplicado: (itemData as any).duplicado
         };
 
         setItems([...items, newItem]);
@@ -1302,6 +1274,7 @@ export default function InventariarAmbiente() {
                     <TableHead>Patrimônio</TableHead>
                     <TableHead>Descrição</TableHead>
                     <TableHead>Situação</TableHead>
+                    <TableHead>Duplicado</TableHead>
                     <TableHead>Inventariante</TableHead>
                     <TableHead>Data/Hora</TableHead>
                   </TableRow>
@@ -1326,6 +1299,15 @@ export default function InventariarAmbiente() {
                             : 'bg-red-100 text-red-800'
                         }`}>
                           {item.situacao}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          item.duplicado === 'Sim' 
+                            ? 'bg-yellow-100 text-yellow-800' 
+                            : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          {item.duplicado || 'Não'}
                         </span>
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
