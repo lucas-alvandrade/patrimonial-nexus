@@ -169,6 +169,7 @@ export type Database = {
           created_at: string
           descricao: string
           id: number
+          inventariante: string | null
           inventario_id: number
           patrimonio: string
           situacao: string
@@ -178,6 +179,7 @@ export type Database = {
           created_at?: string
           descricao: string
           id?: number
+          inventariante?: string | null
           inventario_id: number
           patrimonio: string
           situacao: string
@@ -187,6 +189,7 @@ export type Database = {
           created_at?: string
           descricao?: string
           id?: number
+          inventariante?: string | null
           inventario_id?: number
           patrimonio?: string
           situacao?: string
