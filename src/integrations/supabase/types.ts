@@ -168,6 +168,7 @@ export type Database = {
         Row: {
           created_at: string
           descricao: string
+          duplicado: string | null
           id: number
           inventariante: string | null
           inventario_id: number
@@ -178,6 +179,7 @@ export type Database = {
         Insert: {
           created_at?: string
           descricao: string
+          duplicado?: string | null
           id?: number
           inventariante?: string | null
           inventario_id: number
@@ -188,6 +190,7 @@ export type Database = {
         Update: {
           created_at?: string
           descricao?: string
+          duplicado?: string | null
           id?: number
           inventariante?: string | null
           inventario_id?: number
