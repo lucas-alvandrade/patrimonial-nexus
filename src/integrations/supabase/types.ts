@@ -174,7 +174,6 @@ export type Database = {
           inventario_id: number
           patrimonio: string
           situacao: string
-          tipo_cadastro: string | null
           updated_at: string
         }
         Insert: {
@@ -186,7 +185,6 @@ export type Database = {
           inventario_id: number
           patrimonio: string
           situacao: string
-          tipo_cadastro?: string | null
           updated_at?: string
         }
         Update: {
@@ -198,7 +196,6 @@ export type Database = {
           inventario_id?: number
           patrimonio?: string
           situacao?: string
-          tipo_cadastro?: string | null
           updated_at?: string
         }
         Relationships: [
