@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/popover";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Building2, Plus, Trash2, ArrowLeft, Save, CheckCircle, Unlock, Camera, X, Clock, Users } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -132,6 +133,9 @@ export default function InventariarAmbiente() {
   // Novos estados para tipo de inventariante
   const [tipoInventariante, setTipoInventariante] = useState<'individual' | 'dupla'>('individual');
   const [grupoUsuario, setGrupoUsuario] = useState<string | null>(null);
+  
+  // Estado para checkbox "Sem Patrimônio"
+  const [semPatrimonio, setSemPatrimonio] = useState(false);
   
   const patrimonioRef = useRef<HTMLInputElement>(null);
   const descricaoRef = useRef<HTMLInputElement>(null);
@@ -472,17 +476,29 @@ export default function InventariarAmbiente() {
     console.log('inventarioId:', inventarioId);
     console.log('isConcluido:', isConcluido);
 
-    if (!currentItem.patrimonio.trim() || !currentItem.descricao.trim()) {
-      toast({
-        title: "Atenção",
-        description: "Preencha o patrimônio e a descrição",
-        variant: "destructive",
-      });
-      return;
+    // Validação diferente se for "Sem Patrimônio"
+    if (semPatrimonio) {
+      if (!currentItem.descricao.trim()) {
+        toast({
+          title: "Atenção",
+          description: "Preencha a descrição do item",
+          variant: "destructive",
+        });
+        return;
+      }
+    } else {
+      if (!currentItem.patrimonio.trim() || !currentItem.descricao.trim()) {
+        toast({
+          title: "Atenção",
+          description: "Preencha o patrimônio e a descrição",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
-    // Verificar se o item já está cadastrado em outro ambiente
-    const isDuplicado = await verificarItemDuplicado(currentItem.patrimonio.trim());
+    // Itens "Sem patrimônio" não são considerados duplicados
+    const isDuplicado = semPatrimonio ? false : await verificarItemDuplicado(currentItem.patrimonio.trim());
 
     if (isConcluido) {
       toast({
@@ -506,11 +522,12 @@ export default function InventariarAmbiente() {
     try {
       console.log('Tentando inserir item no banco...');
       // Salvar no banco de dados - Manual (M) porque descrição foi digitada manualmente
+      const patrimonioValue = semPatrimonio ? 'Sem patrimônio' : currentItem.patrimonio;
       const { data: itemData, error: itemError } = await supabase
         .from('inventario_itens')
         .insert({
           inventario_id: inventarioId,
-          patrimonio: currentItem.patrimonio,
+          patrimonio: patrimonioValue,
           descricao: currentItem.descricao,
           situacao: currentItem.situacao,
           inventariante: getInventariante(),
@@ -536,7 +553,7 @@ export default function InventariarAmbiente() {
 
       const newItem: InventarioItem = {
         id: itemData.id.toString(),
-        patrimonio: currentItem.patrimonio,
+        patrimonio: patrimonioValue,
         descricao: currentItem.descricao,
         situacao: currentItem.situacao,
         created_at: itemData.created_at,
@@ -551,6 +568,7 @@ export default function InventariarAmbiente() {
         descricao: '',
         situacao: 'Bom'
       });
+      setSemPatrimonio(false);
 
       toast({
         title: "Sucesso",
@@ -1127,7 +1145,25 @@ export default function InventariarAmbiente() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+              <div className="flex flex-col justify-end">
+                <div className="flex items-center space-x-2 h-10">
+                  <Checkbox
+                    id="sem-patrimonio"
+                    checked={semPatrimonio}
+                    onCheckedChange={(checked) => {
+                      setSemPatrimonio(checked === true);
+                      if (checked) {
+                        setCurrentItem({...currentItem, patrimonio: ''});
+                      }
+                    }}
+                    disabled={isConcluido}
+                  />
+                  <Label htmlFor="sem-patrimonio" className="cursor-pointer text-sm whitespace-nowrap">
+                    Sem Patrimônio
+                  </Label>
+                </div>
+              </div>
               <div>
                 <Label htmlFor="patrimonio">Patrimônio</Label>
                 <Input
@@ -1143,7 +1179,7 @@ export default function InventariarAmbiente() {
                   }}
                   onKeyDown={handlePatrimonioKeyDown}
                   placeholder="Número do patrimônio"
-                  disabled={isConcluido}
+                  disabled={isConcluido || semPatrimonio}
                 />
               </div>
               <div>
