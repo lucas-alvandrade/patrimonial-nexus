@@ -33,9 +33,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Building2, Plus, Trash2, ArrowLeft, Save, CheckCircle, Unlock, Camera, X, Clock } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Building2, Plus, Trash2, ArrowLeft, Save, CheckCircle, Unlock, Camera, X, Clock, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
 interface InventarioItem {
@@ -44,6 +46,7 @@ interface InventarioItem {
   descricao: string;
   situacao: 'Bom' | 'Inservível';
   created_at?: string;
+  inventariante?: string;
 }
 
 interface Ambiente {
@@ -105,6 +108,7 @@ export default function InventariarAmbiente() {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  const { user } = useAuth();
   
   const [ambiente, setAmbiente] = useState<Ambiente | null>(location.state?.ambiente || null);
   const [items, setItems] = useState<InventarioItem[]>([]);
@@ -123,6 +127,10 @@ export default function InventariarAmbiente() {
   const [showDesbloquearDialog, setShowDesbloquearDialog] = useState(false);
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   
+  // Novos estados para tipo de inventariante
+  const [tipoInventariante, setTipoInventariante] = useState<'individual' | 'dupla'>('individual');
+  const [grupoUsuario, setGrupoUsuario] = useState<string | null>(null);
+  
   const patrimonioRef = useRef<HTMLInputElement>(null);
   const descricaoRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -135,10 +143,61 @@ export default function InventariarAmbiente() {
     }
     fetchDescricoes();
     checkAdminStatus();
+    fetchGrupoUsuario();
     if (id) {
       fetchOrCreateInventario();
     }
   }, [id, ambiente]);
+
+  // Buscar o grupo do usuário
+  const fetchGrupoUsuario = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('grupos_usuarios')
+        .select(`
+          grupo_id,
+          grupos!inner(nome)
+        `)
+        .eq('usuario_id', user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      
+      if (data?.grupos) {
+        setGrupoUsuario((data.grupos as any).nome);
+      } else {
+        setGrupoUsuario(null);
+      }
+    } catch (error) {
+      console.error('Error fetching grupo usuario:', error);
+      setGrupoUsuario(null);
+    }
+  };
+
+  // Handler para mudança de tipo de inventariante
+  const handleTipoInventarianteChange = (value: 'individual' | 'dupla') => {
+    if (value === 'dupla' && !grupoUsuario) {
+      toast({
+        title: "Atenção",
+        description: "O usuário não faz parte de nenhuma dupla. Entre em contato com o Presidente do Inventário.",
+        variant: "destructive",
+      });
+      setTipoInventariante('individual');
+      return;
+    }
+    setTipoInventariante(value);
+  };
+
+  // Função para obter o nome do inventariante
+  const getInventariante = (): string => {
+    if (tipoInventariante === 'individual') {
+      return user?.nome || 'Usuário desconhecido';
+    } else {
+      return grupoUsuario || 'Grupo desconhecido';
+    }
+  };
 
   const checkAdminStatus = async () => {
     try {
@@ -191,7 +250,8 @@ export default function InventariarAmbiente() {
           patrimonio: item.patrimonio,
           descricao: item.descricao,
           situacao: item.situacao as 'Bom' | 'Inservível',
-          created_at: item.created_at
+          created_at: item.created_at,
+          inventariante: (item as any).inventariante || undefined
         }));
         setItems(mappedItems);
       } else {
@@ -357,8 +417,9 @@ export default function InventariarAmbiente() {
               inventario_id: inventarioId,
               patrimonio: currentItem.patrimonio,
               descricao: bem.descricao,
-              situacao: currentItem.situacao
-            })
+              situacao: currentItem.situacao,
+              inventariante: getInventariante()
+            } as any)
             .select()
             .single();
 
@@ -379,7 +440,8 @@ export default function InventariarAmbiente() {
             patrimonio: currentItem.patrimonio,
             descricao: bem.descricao,
             situacao: currentItem.situacao,
-            created_at: itemData.created_at
+            created_at: itemData.created_at,
+            inventariante: (itemData as any).inventariante
           };
 
           setItems([newItem, ...items]);
@@ -467,8 +529,9 @@ export default function InventariarAmbiente() {
           inventario_id: inventarioId,
           patrimonio: currentItem.patrimonio,
           descricao: currentItem.descricao,
-          situacao: currentItem.situacao
-        })
+          situacao: currentItem.situacao,
+          inventariante: getInventariante()
+        } as any)
         .select()
         .single();
 
@@ -491,7 +554,8 @@ export default function InventariarAmbiente() {
         patrimonio: currentItem.patrimonio,
         descricao: currentItem.descricao,
         situacao: currentItem.situacao,
-        created_at: itemData.created_at
+        created_at: itemData.created_at,
+        inventariante: (itemData as any).inventariante
       };
 
       setItems([newItem, ...items]);
@@ -714,8 +778,9 @@ export default function InventariarAmbiente() {
             inventario_id: inventarioId,
             patrimonio: patrimonio,
             descricao: bem.descricao,
-            situacao: currentItem.situacao
-          })
+            situacao: currentItem.situacao,
+            inventariante: getInventariante()
+          } as any)
           .select()
           .single();
 
@@ -735,7 +800,8 @@ export default function InventariarAmbiente() {
           id: itemData.id.toString(),
           patrimonio: patrimonio,
           descricao: bem.descricao,
-          situacao: currentItem.situacao
+          situacao: currentItem.situacao,
+          inventariante: (itemData as any).inventariante
         };
 
         setItems([...items, newItem]);
@@ -1042,6 +1108,37 @@ export default function InventariarAmbiente() {
           )}
         </div>
 
+        {/* Seção Quem está inventariando? */}
+        <Card className="mb-4">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Users className="h-5 w-5" />
+              Quem está inventariando?
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <RadioGroup
+              value={tipoInventariante}
+              onValueChange={(value) => handleTipoInventarianteChange(value as 'individual' | 'dupla')}
+              className="flex flex-row gap-6"
+              disabled={isConcluido}
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="individual" id="individual" disabled={isConcluido} />
+                <Label htmlFor="individual" className="cursor-pointer">
+                  Individual ({user?.nome || 'Usuário'})
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="dupla" id="dupla" disabled={isConcluido} />
+                <Label htmlFor="dupla" className="cursor-pointer">
+                  Dupla {grupoUsuario ? `(${grupoUsuario})` : ''}
+                </Label>
+              </div>
+            </RadioGroup>
+          </CardContent>
+        </Card>
+
         <Card className="mb-8">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -1205,6 +1302,7 @@ export default function InventariarAmbiente() {
                     <TableHead>Patrimônio</TableHead>
                     <TableHead>Descrição</TableHead>
                     <TableHead>Situação</TableHead>
+                    <TableHead>Inventariante</TableHead>
                     <TableHead>Data/Hora</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1229,6 +1327,9 @@ export default function InventariarAmbiente() {
                         }`}>
                           {item.situacao}
                         </span>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {item.inventariante || '-'}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {item.created_at 
