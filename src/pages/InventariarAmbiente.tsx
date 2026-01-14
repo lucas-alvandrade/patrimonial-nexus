@@ -219,18 +219,36 @@ export default function InventariarAmbiente() {
 
   const fetchDescricoes = async () => {
     try {
-      const { data, error } = await supabase
-        .from('bens')
-        .select('descricao')
-        .not('descricao', 'is', null)
-        .order('descricao');
-
-      if (error) throw error;
+      // Buscar todas as descrições distintas usando uma abordagem paginada
+      let allDescricoes: string[] = [];
+      let page = 0;
+      const pageSize = 1000;
+      let hasMore = true;
       
-      // Extrair descrições únicas e garantir que são strings válidas
-      const uniqueDescricoes = [...new Set(
-        data?.map(b => b.descricao?.trim()).filter((d): d is string => Boolean(d && d.length > 0))
-      )];
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('bens')
+          .select('descricao')
+          .not('descricao', 'is', null)
+          .order('descricao')
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          const descriptions = data
+            .map(b => b.descricao?.trim())
+            .filter((d): d is string => Boolean(d && d.length > 0));
+          allDescricoes = [...allDescricoes, ...descriptions];
+          page++;
+          hasMore = data.length === pageSize;
+        } else {
+          hasMore = false;
+        }
+      }
+      
+      // Extrair descrições únicas
+      const uniqueDescricoes = [...new Set(allDescricoes)];
       console.log('Descrições carregadas:', uniqueDescricoes.length);
       setDescricoes(uniqueDescricoes);
     } catch (error) {
