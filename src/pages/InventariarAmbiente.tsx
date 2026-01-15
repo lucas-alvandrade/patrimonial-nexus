@@ -243,11 +243,12 @@ export default function InventariarAmbiente() {
       setInventarioId(inventario.id);
       setIsConcluido(inventario.status === 'concluido');
 
-      // Buscar itens do inventário
+      // Buscar itens do inventário ordenados do mais recente para o mais antigo
       const { data: itensData, error: itensError } = await supabase
         .from('inventario_itens')
         .select('*')
-        .eq('inventario_id', inventario.id);
+        .eq('inventario_id', inventario.id)
+        .order('created_at', { ascending: false });
 
       if (itensError) throw itensError;
 
