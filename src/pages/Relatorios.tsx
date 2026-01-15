@@ -17,7 +17,8 @@ import {
   Users,
   TrendingUp,
   AlertTriangle,
-  PackageX
+  PackageX,
+  PenLine
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -299,6 +300,82 @@ export default function Relatorios() {
     }
   };
 
+  const gerarRelatorioItensManuais = async () => {
+    try {
+      // Buscar todos os itens cadastrados manualmente (tipo_cadastro = 'M')
+      const allRows: {
+        patrimonio: string;
+        descricao: string;
+        situacao: string;
+        inventario_id: number;
+        inventariante: string | null;
+        created_at: string;
+      }[] = [];
+      const pageSize = 1000;
+      let from = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from("inventario_itens")
+          .select("patrimonio, descricao, situacao, inventario_id, inventariante, created_at")
+          .eq("tipo_cadastro", "M")
+          .range(from, from + pageSize - 1);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          allRows.push(...data);
+          from += pageSize;
+          hasMore = data.length === pageSize;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      // Buscar ambiente através do inventário para cada item
+      const itensComDetalhes = await Promise.all(
+        allRows.map(async (item) => {
+          const { data: inventario } = await supabase
+            .from("inventarios")
+            .select("ambiente_id")
+            .eq("id", item.inventario_id)
+            .maybeSingle();
+
+          let nomeAmbiente = "";
+          if (inventario) {
+            const { data: ambiente } = await supabase
+              .from("ambientes")
+              .select("nome")
+              .eq("id", inventario.ambiente_id)
+              .maybeSingle();
+            nomeAmbiente = ambiente?.nome || "";
+          }
+
+          return {
+            Ambiente: nomeAmbiente,
+            Patrimônio: item.patrimonio,
+            Descrição: item.descricao,
+            Situação: item.situacao,
+            Inventariante: item.inventariante || "",
+            "Data de Cadastro": new Date(item.created_at).toLocaleDateString("pt-BR"),
+          };
+        })
+      );
+
+      // Criar planilha Excel
+      const ws = XLSX.utils.json_to_sheet(itensComDetalhes);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Itens Manuais");
+      XLSX.writeFile(wb, "relatorio_itens_cadastrados_manualmente.xlsx");
+
+      toast.success(`Relatório gerado com ${itensComDetalhes.length} itens cadastrados manualmente!`);
+    } catch (error) {
+      console.error("Erro ao gerar relatório:", error);
+      toast.error("Erro ao gerar relatório de itens cadastrados manualmente");
+    }
+  };
+
   const relatorios = [
     {
       id: 1,
@@ -323,6 +400,14 @@ export default function Relatorios() {
       icon: PackageX,
       frequencia: "Sob demanda",
       acao: gerarRelatorioItensSemPatrimonio,
+    },
+    {
+      id: 4,
+      titulo: "Itens Cadastrados Manualmente",
+      descricao: "Lista de todos os itens cadastrados manualmente no inventário",
+      icon: PenLine,
+      frequencia: "Sob demanda",
+      acao: gerarRelatorioItensManuais,
     },
   ];
 
