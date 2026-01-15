@@ -495,9 +495,23 @@ export default function InventariarAmbiente() {
         });
         return;
       }
+
+      // Verificar se o patrimônio já existe neste ambiente (exceto "Sem patrimônio")
+      const patrimonioExisteNoAmbiente = items.some(
+        item => item.patrimonio === currentItem.patrimonio.trim() && item.patrimonio !== 'Sem patrimônio'
+      );
+      
+      if (patrimonioExisteNoAmbiente) {
+        toast({
+          title: "Atenção",
+          description: "Esse patrimônio já foi cadastrado neste ambiente",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
-    // Itens "Sem patrimônio" não são considerados duplicados
+    // Itens "Sem patrimônio" não são considerados duplicados em outros ambientes
     const isDuplicado = semPatrimonio ? false : await verificarItemDuplicado(currentItem.patrimonio.trim());
 
     if (isConcluido) {
