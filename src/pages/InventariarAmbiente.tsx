@@ -134,8 +134,9 @@ export default function InventariarAmbiente() {
   const [tipoInventariante, setTipoInventariante] = useState<'individual' | 'dupla'>('individual');
   const [grupoUsuario, setGrupoUsuario] = useState<string | null>(null);
   
-  // Estado para checkbox "Sem Patrimônio"
+  // Estado para checkbox "Sem Patrimônio" e quantidade
   const [semPatrimonio, setSemPatrimonio] = useState(false);
+  const [quantidade, setQuantidade] = useState(1);
   
   const patrimonioRef = useRef<HTMLInputElement>(null);
   const descricaoRef = useRef<HTMLInputElement>(null);
@@ -537,59 +538,68 @@ export default function InventariarAmbiente() {
       console.log('Tentando inserir item no banco...');
       // Salvar no banco de dados - Manual (M) porque descrição foi digitada manualmente
       const patrimonioValue = semPatrimonio ? 'Sem patrimônio' : currentItem.patrimonio;
-      const { data: itemData, error: itemError } = await supabase
-        .from('inventario_itens')
-        .insert({
-          inventario_id: inventarioId,
+      const qtdToInsert = semPatrimonio ? quantidade : 1;
+      
+      const newItems: InventarioItem[] = [];
+      
+      for (let i = 0; i < qtdToInsert; i++) {
+        const { data: itemData, error: itemError } = await supabase
+          .from('inventario_itens')
+          .insert({
+            inventario_id: inventarioId,
+            patrimonio: patrimonioValue,
+            descricao: currentItem.descricao,
+            situacao: currentItem.situacao,
+            inventariante: getInventariante(),
+            duplicado: isDuplicado ? 'Sim' : 'Não',
+            tipo_cadastro: 'M'
+          } as any)
+          .select()
+          .single();
+
+        console.log('Resultado da inserção:', { itemData, itemError });
+
+        if (itemError) throw itemError;
+
+        // Atualizar status para "em_andamento" se for o primeiro item
+        if (items.length === 0 && i === 0) {
+          const { error: statusError } = await supabase
+            .from('inventarios')
+            .update({ status: 'em_andamento' })
+            .eq('id', inventarioId);
+
+          if (statusError) throw statusError;
+        }
+
+        const newItem: InventarioItem = {
+          id: itemData.id.toString(),
           patrimonio: patrimonioValue,
           descricao: currentItem.descricao,
           situacao: currentItem.situacao,
-          inventariante: getInventariante(),
-          duplicado: isDuplicado ? 'Sim' : 'Não',
+          created_at: itemData.created_at,
+          inventariante: (itemData as any).inventariante,
+          duplicado: (itemData as any).duplicado,
           tipo_cadastro: 'M'
-        } as any)
-        .select()
-        .single();
+        };
 
-      console.log('Resultado da inserção:', { itemData, itemError });
-
-      if (itemError) throw itemError;
-
-      // Atualizar status para "em_andamento" se for o primeiro item
-      if (items.length === 0) {
-        const { error: statusError } = await supabase
-          .from('inventarios')
-          .update({ status: 'em_andamento' })
-          .eq('id', inventarioId);
-
-        if (statusError) throw statusError;
+        newItems.push(newItem);
       }
 
-      const newItem: InventarioItem = {
-        id: itemData.id.toString(),
-        patrimonio: patrimonioValue,
-        descricao: currentItem.descricao,
-        situacao: currentItem.situacao,
-        created_at: itemData.created_at,
-        inventariante: (itemData as any).inventariante,
-        duplicado: (itemData as any).duplicado,
-        tipo_cadastro: 'M'
-      };
-
-      setItems([newItem, ...items]);
+      setItems([...newItems.reverse(), ...items]);
       setCurrentItem({
         patrimonio: '',
         descricao: '',
         situacao: 'Bom'
       });
       setSemPatrimonio(false);
+      setQuantidade(1);
 
       toast({
         title: "Sucesso",
-        description: "Item adicionado ao inventário",
+        description: qtdToInsert > 1 ? `${qtdToInsert} itens adicionados ao inventário` : "Item adicionado ao inventário",
       });
 
-      console.log('Item cadastrado com sucesso:', newItem);
+      console.log('Itens cadastrados com sucesso:', newItems);
     } catch (error) {
       console.error('Error adding item:', error);
       toast({
@@ -1169,6 +1179,7 @@ export default function InventariarAmbiente() {
                       setSemPatrimonio(checked === true);
                       if (checked) {
                         setCurrentItem({...currentItem, patrimonio: ''});
+                        setQuantidade(1);
                       }
                     }}
                     disabled={isConcluido}
@@ -1178,6 +1189,20 @@ export default function InventariarAmbiente() {
                   </Label>
                 </div>
               </div>
+              {semPatrimonio && (
+                <div>
+                  <Label htmlFor="quantidade">Quantidade</Label>
+                  <Input
+                    id="quantidade"
+                    type="number"
+                    min={1}
+                    value={quantidade}
+                    onChange={(e) => setQuantidade(Math.max(1, parseInt(e.target.value) || 1))}
+                    disabled={isConcluido}
+                    className="w-24"
+                  />
+                </div>
+              )}
               <div>
                 <Label htmlFor="patrimonio">Patrimônio</Label>
                 <Input
