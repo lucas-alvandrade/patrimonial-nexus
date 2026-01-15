@@ -500,7 +500,7 @@ export default function Relatorios() {
         return;
       }
 
-      // Para cada inventário, buscar o primeiro item cadastrado e o nome do ambiente
+      // Para cada inventário, buscar o primeiro e último item cadastrado e o nome do ambiente
       const temposAmbientes = await Promise.all(
         inventarios.map(async (inv) => {
           // Buscar o primeiro item cadastrado neste inventário
@@ -512,6 +512,15 @@ export default function Relatorios() {
             .limit(1)
             .maybeSingle();
 
+          // Buscar o último item cadastrado neste inventário
+          const { data: ultimoItem } = await supabase
+            .from("inventario_itens")
+            .select("created_at")
+            .eq("inventario_id", inv.id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
           // Buscar o nome do ambiente
           const { data: ambiente } = await supabase
             .from("ambientes")
@@ -519,12 +528,12 @@ export default function Relatorios() {
             .eq("id", inv.ambiente_id)
             .maybeSingle();
 
-          if (!primeiroItem || !inv.concluido_em) {
+          if (!primeiroItem || !ultimoItem) {
             return null;
           }
 
           const inicio = new Date(primeiroItem.created_at);
-          const fim = new Date(inv.concluido_em);
+          const fim = new Date(ultimoItem.created_at);
           const diffMs = fim.getTime() - inicio.getTime();
 
           // Calcular tempo em horas, minutos e segundos
