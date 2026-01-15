@@ -16,7 +16,8 @@ import {
   Building2,
   Users,
   TrendingUp,
-  AlertTriangle
+  AlertTriangle,
+  PackageX
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -223,6 +224,81 @@ export default function Relatorios() {
     }
   };
 
+  const gerarRelatorioItensSemPatrimonio = async () => {
+    try {
+      // Buscar todos os itens sem patrimônio
+      const allRows: {
+        patrimonio: string;
+        descricao: string;
+        situacao: string;
+        inventario_id: number;
+        inventariante: string | null;
+        created_at: string;
+      }[] = [];
+      const pageSize = 1000;
+      let from = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from("inventario_itens")
+          .select("patrimonio, descricao, situacao, inventario_id, inventariante, created_at")
+          .eq("patrimonio", "Sem patrimônio")
+          .range(from, from + pageSize - 1);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          allRows.push(...data);
+          from += pageSize;
+          hasMore = data.length === pageSize;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      // Buscar ambiente através do inventário para cada item
+      const itensComDetalhes = await Promise.all(
+        allRows.map(async (item) => {
+          const { data: inventario } = await supabase
+            .from("inventarios")
+            .select("ambiente_id")
+            .eq("id", item.inventario_id)
+            .maybeSingle();
+
+          let nomeAmbiente = "";
+          if (inventario) {
+            const { data: ambiente } = await supabase
+              .from("ambientes")
+              .select("nome")
+              .eq("id", inventario.ambiente_id)
+              .maybeSingle();
+            nomeAmbiente = ambiente?.nome || "";
+          }
+
+          return {
+            Ambiente: nomeAmbiente,
+            Descrição: item.descricao,
+            Situação: item.situacao,
+            Inventariante: item.inventariante || "",
+            "Data de Cadastro": new Date(item.created_at).toLocaleDateString("pt-BR"),
+          };
+        })
+      );
+
+      // Criar planilha Excel
+      const ws = XLSX.utils.json_to_sheet(itensComDetalhes);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Itens Sem Patrimônio");
+      XLSX.writeFile(wb, "relatorio_itens_sem_patrimonio.xlsx");
+
+      toast.success(`Relatório gerado com ${itensComDetalhes.length} itens sem patrimônio!`);
+    } catch (error) {
+      console.error("Erro ao gerar relatório:", error);
+      toast.error("Erro ao gerar relatório de itens sem patrimônio");
+    }
+  };
+
   const relatorios = [
     {
       id: 1,
@@ -239,6 +315,14 @@ export default function Relatorios() {
       icon: AlertTriangle,
       frequencia: "Sob demanda",
       acao: gerarRelatorioItensNaoLocalizados,
+    },
+    {
+      id: 3,
+      titulo: "Itens Sem Patrimônio",
+      descricao: "Lista de todos os itens cadastrados sem número de patrimônio",
+      icon: PackageX,
+      frequencia: "Sob demanda",
+      acao: gerarRelatorioItensSemPatrimonio,
     },
   ];
 
