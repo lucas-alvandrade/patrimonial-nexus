@@ -19,7 +19,8 @@ import {
   AlertTriangle,
   PackageX,
   PenLine,
-  Copy
+  Copy,
+  Clock
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -483,6 +484,89 @@ export default function Relatorios() {
     }
   };
 
+  const gerarRelatorioTempoAmbientes = async () => {
+    try {
+      // Buscar todos os inventários concluídos
+      const { data: inventarios, error: invError } = await supabase
+        .from("inventarios")
+        .select("id, ambiente_id, concluido_em")
+        .eq("status", "concluido")
+        .not("concluido_em", "is", null);
+
+      if (invError) throw invError;
+
+      if (!inventarios || inventarios.length === 0) {
+        toast.info("Nenhum ambiente concluído encontrado");
+        return;
+      }
+
+      // Para cada inventário, buscar o primeiro item cadastrado e o nome do ambiente
+      const temposAmbientes = await Promise.all(
+        inventarios.map(async (inv) => {
+          // Buscar o primeiro item cadastrado neste inventário
+          const { data: primeiroItem } = await supabase
+            .from("inventario_itens")
+            .select("created_at")
+            .eq("inventario_id", inv.id)
+            .order("created_at", { ascending: true })
+            .limit(1)
+            .maybeSingle();
+
+          // Buscar o nome do ambiente
+          const { data: ambiente } = await supabase
+            .from("ambientes")
+            .select("nome")
+            .eq("id", inv.ambiente_id)
+            .maybeSingle();
+
+          if (!primeiroItem || !inv.concluido_em) {
+            return null;
+          }
+
+          const inicio = new Date(primeiroItem.created_at);
+          const fim = new Date(inv.concluido_em);
+          const diffMs = fim.getTime() - inicio.getTime();
+
+          // Calcular tempo em horas, minutos e segundos
+          const diffHoras = Math.floor(diffMs / (1000 * 60 * 60));
+          const diffMinutos = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+          const diffSegundos = Math.floor((diffMs % (1000 * 60)) / 1000);
+
+          const tempoFormatado = `${diffHoras}h ${diffMinutos}m ${diffSegundos}s`;
+
+          return {
+            Ambiente: ambiente?.nome || "",
+            "Data/Hora Início": inicio.toLocaleString("pt-BR"),
+            "Data/Hora Fim": fim.toLocaleString("pt-BR"),
+            "Tempo Total": tempoFormatado,
+            "Tempo (minutos)": Math.round(diffMs / (1000 * 60)),
+          };
+        })
+      );
+
+      // Filtrar nulos e ordenar por ambiente
+      const temposValidos = temposAmbientes
+        .filter((t) => t !== null)
+        .sort((a, b) => a!.Ambiente.localeCompare(b!.Ambiente));
+
+      if (temposValidos.length === 0) {
+        toast.info("Nenhum ambiente com dados de tempo encontrado");
+        return;
+      }
+
+      // Criar planilha Excel
+      const ws = XLSX.utils.json_to_sheet(temposValidos);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Tempo por Ambiente");
+      XLSX.writeFile(wb, "relatorio_tempo_ambientes.xlsx");
+
+      toast.success(`Relatório gerado com ${temposValidos.length} ambientes!`);
+    } catch (error) {
+      console.error("Erro ao gerar relatório:", error);
+      toast.error("Erro ao gerar relatório de tempo por ambiente");
+    }
+  };
+
   const relatorios = [
     {
       id: 1,
@@ -523,6 +607,14 @@ export default function Relatorios() {
       icon: Copy,
       frequencia: "Sob demanda",
       acao: gerarRelatorioItensDuplicados,
+    },
+    {
+      id: 6,
+      titulo: "Tempo por Ambiente",
+      descricao: "Tempo gasto para concluir cada ambiente (do primeiro item até a conclusão)",
+      icon: Clock,
+      frequencia: "Sob demanda",
+      acao: gerarRelatorioTempoAmbientes,
     },
   ];
 
