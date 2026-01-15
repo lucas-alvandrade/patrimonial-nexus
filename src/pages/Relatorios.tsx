@@ -18,7 +18,8 @@ import {
   TrendingUp,
   AlertTriangle,
   PackageX,
-  PenLine
+  PenLine,
+  Copy
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -376,6 +377,112 @@ export default function Relatorios() {
     }
   };
 
+  const gerarRelatorioItensDuplicados = async () => {
+    try {
+      // Buscar todos os itens que são duplicados ou que têm duplicatas
+      const allRows: {
+        patrimonio: string;
+        descricao: string;
+        situacao: string;
+        inventario_id: number;
+        inventariante: string | null;
+        duplicado: string | null;
+        created_at: string;
+      }[] = [];
+      const pageSize = 1000;
+      let from = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from("inventario_itens")
+          .select("patrimonio, descricao, situacao, inventario_id, inventariante, duplicado, created_at")
+          .range(from, from + pageSize - 1);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          allRows.push(...data);
+          from += pageSize;
+          hasMore = data.length === pageSize;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      // Agrupar por patrimônio para encontrar duplicatas
+      const patrimonioMap = new Map<string, typeof allRows>();
+      allRows.forEach((item) => {
+        // Ignorar itens "Sem patrimônio"
+        if (item.patrimonio === "Sem patrimônio") return;
+        
+        const existing = patrimonioMap.get(item.patrimonio) || [];
+        existing.push(item);
+        patrimonioMap.set(item.patrimonio, existing);
+      });
+
+      // Filtrar apenas patrimônios que aparecem mais de uma vez
+      const itensDuplicados: typeof allRows = [];
+      patrimonioMap.forEach((items) => {
+        if (items.length > 1) {
+          // Ordenar por data de criação para identificar o primeiro
+          items.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+          itensDuplicados.push(...items);
+        }
+      });
+
+      // Buscar ambiente através do inventário para cada item
+      const itensComDetalhes = await Promise.all(
+        itensDuplicados.map(async (item, index) => {
+          const { data: inventario } = await supabase
+            .from("inventarios")
+            .select("ambiente_id")
+            .eq("id", item.inventario_id)
+            .maybeSingle();
+
+          let nomeAmbiente = "";
+          if (inventario) {
+            const { data: ambiente } = await supabase
+              .from("ambientes")
+              .select("nome")
+              .eq("id", inventario.ambiente_id)
+              .maybeSingle();
+            nomeAmbiente = ambiente?.nome || "";
+          }
+
+          // Identificar se é o primeiro cadastro ou duplicata
+          const itemsDoPatrimonio = patrimonioMap.get(item.patrimonio) || [];
+          const isFirst = itemsDoPatrimonio[0]?.created_at === item.created_at;
+
+          return {
+            Patrimônio: item.patrimonio,
+            Descrição: item.descricao,
+            Ambiente: nomeAmbiente,
+            Situação: item.situacao,
+            "Tipo": isFirst ? "Original" : "Duplicata",
+            Inventariante: item.inventariante || "",
+            "Data de Cadastro": new Date(item.created_at).toLocaleDateString("pt-BR"),
+          };
+        })
+      );
+
+      // Ordenar por patrimônio para agrupar visualmente
+      itensComDetalhes.sort((a, b) => a.Patrimônio.localeCompare(b.Patrimônio));
+
+      // Criar planilha Excel
+      const ws = XLSX.utils.json_to_sheet(itensComDetalhes);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Itens Duplicados");
+      XLSX.writeFile(wb, "relatorio_itens_duplicados.xlsx");
+
+      const totalPatrimoniosDuplicados = patrimonioMap.size;
+      toast.success(`Relatório gerado com ${itensComDetalhes.length} itens (${totalPatrimoniosDuplicados} patrimônios duplicados)!`);
+    } catch (error) {
+      console.error("Erro ao gerar relatório:", error);
+      toast.error("Erro ao gerar relatório de itens duplicados");
+    }
+  };
+
   const relatorios = [
     {
       id: 1,
@@ -408,6 +515,14 @@ export default function Relatorios() {
       icon: PenLine,
       frequencia: "Sob demanda",
       acao: gerarRelatorioItensManuais,
+    },
+    {
+      id: 5,
+      titulo: "Itens Duplicados",
+      descricao: "Lista de itens com o mesmo patrimônio cadastrados em ambientes diferentes",
+      icon: Copy,
+      frequencia: "Sob demanda",
+      acao: gerarRelatorioItensDuplicados,
     },
   ];
 
