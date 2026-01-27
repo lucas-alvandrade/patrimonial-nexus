@@ -34,12 +34,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Building2, Plus, Trash2, ArrowLeft, Save, CheckCircle, Unlock, Camera, X, Clock, Users } from "lucide-react";
+import { Building2, Plus, Trash2, ArrowLeft, Save, CheckCircle, Unlock, Camera, Clock, Users } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import { BarcodeScanner } from "@/components/BarcodeScanner";
 
 interface InventarioItem {
   id?: string;
@@ -140,9 +141,6 @@ export default function InventariarAmbiente() {
   
   const patrimonioRef = useRef<HTMLInputElement>(null);
   const descricaoRef = useRef<HTMLInputElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const scannerRef = useRef<any>(null);
-  const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     if (!ambiente && id) {
@@ -753,25 +751,10 @@ export default function InventariarAmbiente() {
     navigate('/inventariar');
   };
 
-  const playBeep = () => {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    
-    oscillator.frequency.value = 800;
-    oscillator.type = 'sine';
-    
-    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
-    
-    oscillator.start(audioContext.currentTime);
-    oscillator.stop(audioContext.currentTime + 0.2);
-  };
-
   const processarPatrimonioScanner = async (patrimonio: string) => {
+    // Preencher o campo patrimônio com o valor lido
+    setCurrentItem(prev => ({...prev, patrimonio}));
+    
     // Verificar se o item já está cadastrado em outro ambiente
     const isDuplicado = await verificarItemDuplicado(patrimonio);
     
@@ -785,7 +768,6 @@ export default function InventariarAmbiente() {
           description: "Inventário não foi inicializado corretamente",
           variant: "destructive",
         });
-        stopBarcodeScanner();
         return;
       }
 
@@ -822,20 +804,25 @@ export default function InventariarAmbiente() {
           patrimonio: patrimonio,
           descricao: bem.descricao,
           situacao: currentItem.situacao,
+          created_at: itemData.created_at,
           inventariante: (itemData as any).inventariante,
           duplicado: (itemData as any).duplicado,
           tipo_cadastro: 'A'
         };
 
-        setItems([...items, newItem]);
+        setItems([newItem, ...items]);
+        
+        // Limpar o campo patrimônio para próxima leitura
+        setCurrentItem({
+          patrimonio: '',
+          descricao: '',
+          situacao: 'Bom'
+        });
 
         toast({
           title: "Sucesso",
           description: "Item adicionado ao inventário",
         });
-        
-        // Fechar a câmera após adicionar o item
-        stopBarcodeScanner();
       } catch (error) {
         console.error('Error adding item:', error);
         toast({
@@ -843,267 +830,22 @@ export default function InventariarAmbiente() {
           description: "Erro ao adicionar item",
           variant: "destructive",
         });
-        stopBarcodeScanner();
       }
     } else {
-      // Bem não encontrado
+      // Bem não encontrado - preencher apenas o campo patrimônio para cadastro manual
       toast({
         title: "Bem não encontrado",
-        description: `Patrimônio ${patrimonio} não existe na tabela de Bens`,
-        variant: "destructive",
+        description: `Patrimônio ${patrimonio} inserido. Preencha a descrição manualmente.`,
       });
-      stopBarcodeScanner();
+      
+      // Focar no campo de descrição
+      setTimeout(() => descricaoRef.current?.focus(), 100);
     }
   };
 
-  const startBarcodeScanner = async () => {
-    try {
-      setShowBarcodeScanner(true);
-      
-      // Aguardar um pouco para o vídeo estar disponível
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      if (!videoRef.current) {
-        toast({
-          title: "Erro",
-          description: "Elemento de vídeo não disponível",
-          variant: "destructive",
-        });
-        setShowBarcodeScanner(false);
-        return;
-      }
-
-      console.log('Iniciando scanner de código de barras...');
-
-      // Tentar obter a lista de dispositivos de vídeo disponíveis
-      let selectedDeviceId: string | undefined;
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoDevices = devices.filter(device => device.kind === 'videoinput');
-        
-        console.log('Câmeras disponíveis:', videoDevices.length);
-        
-        // Procurar pela câmera traseira (environment)
-        const backCamera = videoDevices.find(device => 
-          device.label.toLowerCase().includes('back') || 
-          device.label.toLowerCase().includes('rear') ||
-          device.label.toLowerCase().includes('traseira') ||
-          device.label.toLowerCase().includes('environment')
-        );
-        
-        if (backCamera) {
-          selectedDeviceId = backCamera.deviceId;
-          console.log('Câmera traseira encontrada:', backCamera.label);
-        }
-      } catch (err) {
-        console.log('Não foi possível enumerar dispositivos:', err);
-      }
-
-      // Tentar diferentes configurações de câmera com fallbacks
-      const constraintsList = [
-        // Tentar com deviceId específico se encontrado
-        selectedDeviceId ? {
-          video: {
-            deviceId: { exact: selectedDeviceId },
-            width: { ideal: 1920, max: 3840 },
-            height: { ideal: 1080, max: 2160 }
-          }
-        } : null,
-        // Tentar com facingMode environment (exact)
-        {
-          video: {
-            facingMode: { exact: 'environment' },
-            width: { ideal: 1920, max: 3840 },
-            height: { ideal: 1080, max: 2160 }
-          }
-        },
-        // Tentar com facingMode environment (ideal)
-        {
-          video: {
-            facingMode: { ideal: 'environment' },
-            width: { ideal: 1920, max: 3840 },
-            height: { ideal: 1080, max: 2160 }
-          }
-        },
-        // Tentar com alta resolução
-        {
-          video: {
-            width: { ideal: 1920 },
-            height: { ideal: 1080 }
-          }
-        },
-        // Fallback final - qualquer câmera
-        { video: true }
-      ].filter(Boolean);
-
-      let stream: MediaStream | null = null;
-      let lastError: any = null;
-
-      // Tentar cada constraint até conseguir uma câmera
-      for (const constraints of constraintsList) {
-        try {
-          stream = await navigator.mediaDevices.getUserMedia(constraints as MediaStreamConstraints);
-          if (stream) {
-            console.log('Câmera obtida com sucesso');
-            break;
-          }
-        } catch (err) {
-          console.log('Tentativa falhou, tentando próxima configuração...');
-          lastError = err;
-        }
-      }
-
-      if (!stream) {
-        throw lastError || new Error('Não foi possível acessar a câmera');
-      }
-
-      streamRef.current = stream;
-      videoRef.current.srcObject = stream;
-
-      // Configurar atributos do vídeo para melhor compatibilidade mobile
-      videoRef.current.setAttribute('playsinline', 'true');
-      videoRef.current.setAttribute('autoplay', 'true');
-      videoRef.current.muted = true;
-
-      // Aguardar o vídeo estar pronto
-      await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('Timeout ao iniciar vídeo')), 10000);
-        videoRef.current!.onloadedmetadata = () => {
-          clearTimeout(timeout);
-          videoRef.current!.play()
-            .then(() => {
-              console.log('Vídeo iniciado com sucesso');
-              resolve();
-            })
-            .catch(reject);
-        };
-      });
-
-      // Importar e iniciar o scanner com hints otimizados
-      const { BrowserMultiFormatReader } = await import('@zxing/browser');
-      const { BarcodeFormat, DecodeHintType } = await import('@zxing/library');
-      
-      const hints = new Map();
-      
-      // Formatos de código de barras mais comuns
-      hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-        BarcodeFormat.EAN_13,
-        BarcodeFormat.EAN_8,
-        BarcodeFormat.CODE_128,
-        BarcodeFormat.CODE_39,
-        BarcodeFormat.CODE_93,
-        BarcodeFormat.UPC_A,
-        BarcodeFormat.UPC_E,
-        BarcodeFormat.QR_CODE,
-        BarcodeFormat.CODABAR,
-        BarcodeFormat.ITF
-      ]);
-      
-      // Tentar mais agressivamente decodificar
-      hints.set(DecodeHintType.TRY_HARDER, true);
-
-      const codeReader = new BrowserMultiFormatReader(hints);
-      scannerRef.current = codeReader;
-
-      console.log('Iniciando decodificação contínua...');
-      
-      let isProcessing = false;
-
-      // Usar decodeFromStream para melhor compatibilidade
-      await codeReader.decodeFromStream(
-        stream,
-        videoRef.current,
-        (result, error) => {
-          if (result && !isProcessing) {
-            isProcessing = true;
-            const barcodeText = result.getText();
-            console.log('✅ Código detectado:', barcodeText);
-            
-            // Emitir som de confirmação
-            playBeep();
-            
-            // Mostrar toast de sucesso
-            toast({
-              title: "✅ Código lido com sucesso!",
-              description: `Patrimônio: ${barcodeText}`,
-            });
-            
-            // Processar automaticamente o patrimônio
-            processarPatrimonioScanner(barcodeText);
-            
-            // Pequeno delay antes de permitir nova leitura
-            setTimeout(() => {
-              isProcessing = false;
-            }, 1000);
-          }
-          
-          // Não logar erros NotFoundException (são esperados durante a varredura)
-          if (error && error.name !== 'NotFoundException') {
-            console.log('Erro na detecção:', error.name);
-          }
-        }
-      );
-      
-      console.log('Scanner configurado e ativo');
-      
-      toast({
-        title: "📷 Câmera ativa",
-        description: "Aproxime o código de barras da câmera",
-      });
-      
-    } catch (error: any) {
-      console.error('Error starting barcode scanner:', error);
-      
-      let errorMessage = "Não foi possível acessar a câmera.";
-      
-      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-        errorMessage = "Permissão de câmera negada. Por favor, permita o acesso à câmera nas configurações do navegador.";
-      } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
-        errorMessage = "Nenhuma câmera foi encontrada no dispositivo.";
-      } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
-        errorMessage = "A câmera está sendo usada por outro aplicativo. Feche outros aplicativos que possam estar usando a câmera.";
-      } else if (error.name === 'OverconstrainedError' || error.name === 'ConstraintNotSatisfiedError') {
-        errorMessage = "A câmera não suporta as configurações necessárias.";
-      }
-      
-      toast({
-        title: "Erro ao acessar câmera",
-        description: errorMessage,
-        variant: "destructive",
-      });
-      setShowBarcodeScanner(false);
-    }
-  };
-
-  const stopBarcodeScanner = () => {
-    console.log('Fechando scanner...');
-    
-    // Parar o scanner
-    if (scannerRef.current) {
-      try {
-        scannerRef.current.reset();
-      } catch (e) {
-        console.error('Erro ao resetar scanner:', e);
-      }
-      scannerRef.current = null;
-    }
-    
-    // Parar o stream da câmera
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => {
-        track.stop();
-        console.log('Track parado:', track.kind);
-      });
-      streamRef.current = null;
-    }
-    
-    // Limpar o vídeo
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-    
-    setShowBarcodeScanner(false);
-    console.log('Scanner fechado');
+  const handleBarcodeScan = (code: string) => {
+    console.log("Código lido:", code);
+    processarPatrimonioScanner(code);
   };
 
   if (!ambiente) {
@@ -1318,7 +1060,7 @@ export default function InventariarAmbiente() {
                 </Button>
                 <Button 
                   variant="outline"
-                  onClick={startBarcodeScanner}
+                  onClick={() => setShowBarcodeScanner(true)}
                   disabled={isConcluido}
                   title="Ler código de barras"
                 >
@@ -1485,37 +1227,11 @@ export default function InventariarAmbiente() {
           </AlertDialogContent>
         </AlertDialog>
 
-        {showBarcodeScanner && (
-          <div className="fixed inset-0 z-50 bg-black/90 flex flex-col">
-            <div className="flex justify-between items-center p-4 bg-black/50">
-              <h2 className="text-white text-xl font-semibold">Scanner de Código de Barras</h2>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={stopBarcodeScanner}
-                className="text-white hover:bg-white/20"
-              >
-                <X className="h-6 w-6" />
-              </Button>
-            </div>
-            <div className="flex-1 flex items-center justify-center p-4">
-              <div className="relative w-full max-w-2xl aspect-video">
-                <video
-                  ref={videoRef}
-                  className="w-full h-full object-cover rounded-lg"
-                  autoPlay
-                  playsInline
-                />
-                <div className="absolute inset-0 border-4 border-primary/50 rounded-lg pointer-events-none" />
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-1 bg-primary/70 animate-pulse" />
-              </div>
-            </div>
-            <div className="p-4 text-center text-white">
-              <p className="text-sm">Posicione o código de barras dentro da área marcada</p>
-              <p className="text-xs text-gray-400 mt-2">A câmera fechará automaticamente após adicionar o item</p>
-            </div>
-          </div>
-        )}
+        <BarcodeScanner
+          isOpen={showBarcodeScanner}
+          onClose={() => setShowBarcodeScanner(false)}
+          onScan={handleBarcodeScan}
+        />
       </div>
     </div>
   );
