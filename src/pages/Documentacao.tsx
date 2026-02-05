@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { 
   BookOpen, 
   ScanBarcode, 
@@ -13,8 +14,16 @@ import {
   PenLine,
   ListChecks,
   MapPin,
-  Package
+  Package,
+  ArrowRight,
+  Lightbulb
 } from "lucide-react";
+
+// Componentes de exemplo para ilustração
+import { ExampleItemCard } from "@/components/documentation/ExampleItemCard";
+import { ExampleScannerModal } from "@/components/documentation/ExampleScannerModal";
+import { ExampleInputForm } from "@/components/documentation/ExampleInputForm";
+import { ExampleEnvironmentCard } from "@/components/documentation/ExampleEnvironmentCard";
 
 export default function Documentacao() {
   return (
@@ -41,7 +50,7 @@ export default function Documentacao() {
         </CardHeader>
         <CardContent>
           <ScrollArea className="h-[calc(100vh-300px)]">
-            <div className="space-y-6 pr-4">
+            <div className="space-y-8 pr-4">
               {/* Introdução */}
               <section className="space-y-3">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -53,15 +62,24 @@ export default function Documentacao() {
                   bens localizados em um determinado ambiente. Este tutorial irá guiá-lo através de todas 
                   as etapas necessárias para realizar um inventário completo e preciso.
                 </p>
+                <div className="bg-primary/10 p-4 rounded-lg flex items-start gap-3">
+                  <Lightbulb className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                  <p className="text-sm text-muted-foreground">
+                    <strong>Dica:</strong> Antes de iniciar, certifique-se de que seu dispositivo está com a câmera 
+                    funcionando corretamente e com boa iluminação no ambiente para facilitar a leitura dos códigos de barras.
+                  </p>
+                </div>
               </section>
 
+              <Separator />
+
               {/* Acessando o Ambiente */}
-              <section className="space-y-3">
+              <section className="space-y-4">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
                   <MapPin className="h-5 w-5 text-muted-foreground" />
                   1. Acessando o Ambiente para Inventário
                 </h3>
-                <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                <div className="bg-muted/50 rounded-lg p-4 space-y-3">
                   <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
                     <li>No menu lateral, clique em <Badge variant="secondary">Inventariar</Badge></li>
                     <li>Localize o ambiente desejado na lista (use a busca ou filtros se necessário)</li>
@@ -69,10 +87,39 @@ export default function Documentacao() {
                     <li>O sistema abrirá a tela de inventário do ambiente selecionado</li>
                   </ol>
                 </div>
+
+                {/* Exemplo visual de card de ambiente */}
+                <div className="space-y-2">
+                  <p className="text-sm font-medium flex items-center gap-2">
+                    <ArrowRight className="h-4 w-4 text-primary" />
+                    Exemplo de como os ambientes aparecem na lista:
+                  </p>
+                  <div className="grid gap-3">
+                    <ExampleEnvironmentCard
+                      nome="Sala de Reuniões A100"
+                      bloco="A"
+                      status="nao_iniciado"
+                    />
+                    <ExampleEnvironmentCard
+                      nome="Laboratório de Informática B201"
+                      bloco="B"
+                      status="em_andamento"
+                      totalItens={15}
+                    />
+                    <ExampleEnvironmentCard
+                      nome="Almoxarifado Central C001"
+                      bloco="C"
+                      status="concluido"
+                      totalItens={42}
+                    />
+                  </div>
+                </div>
               </section>
 
+              <Separator />
+
               {/* Status do Inventário */}
-              <section className="space-y-3">
+              <section className="space-y-4">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
                   <ListChecks className="h-5 w-5 text-muted-foreground" />
                   2. Entendendo os Status do Inventário
@@ -100,12 +147,23 @@ export default function Documentacao() {
                 </div>
               </section>
 
+              <Separator />
+
               {/* Métodos de Cadastro */}
-              <section className="space-y-3">
+              <section className="space-y-4">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
                   <PenLine className="h-5 w-5 text-muted-foreground" />
                   3. Métodos de Cadastro de Bens
                 </h3>
+
+                {/* Exemplo do formulário de cadastro */}
+                <div className="space-y-2">
+                  <p className="text-sm font-medium flex items-center gap-2">
+                    <ArrowRight className="h-4 w-4 text-primary" />
+                    Formulário de cadastro de itens:
+                  </p>
+                  <ExampleInputForm />
+                </div>
                 
                 <Accordion type="single" collapsible className="w-full">
                   {/* Método Manual */}
@@ -118,7 +176,7 @@ export default function Documentacao() {
                       </div>
                     </AccordionTrigger>
                     <AccordionContent>
-                      <div className="space-y-3 pt-2">
+                      <div className="space-y-4 pt-2">
                         <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
                           <li>Digite o número do patrimônio no campo "Patrimônio"</li>
                           <li>Clique no botão <Badge variant="secondary">Buscar</Badge></li>
@@ -126,6 +184,21 @@ export default function Documentacao() {
                           <li>Selecione a situação do bem (Bom, Regular, Ruim, Inservível)</li>
                           <li>Clique em <Badge>Salvar Item</Badge></li>
                         </ol>
+
+                        {/* Exemplo de formulário preenchido */}
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium flex items-center gap-2">
+                            <ArrowRight className="h-4 w-4 text-primary" />
+                            Exemplo de formulário preenchido após busca:
+                          </p>
+                          <ExampleInputForm
+                            patrimonio="123456789"
+                            descricao="Cadeira Giratória com Braços - Cor Preta"
+                            situacao="Bom"
+                            showFilled
+                          />
+                        </div>
+
                         <div className="bg-primary/10 p-3 rounded-lg flex items-start gap-2">
                           <AlertTriangle className="h-4 w-4 text-primary mt-0.5" />
                           <p className="text-sm text-muted-foreground">
@@ -147,7 +220,7 @@ export default function Documentacao() {
                       </div>
                     </AccordionTrigger>
                     <AccordionContent>
-                      <div className="space-y-3 pt-2">
+                      <div className="space-y-4 pt-2">
                         <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
                           <li>Clique no botão <Badge variant="secondary"><ScanBarcode className="h-3 w-3 inline mr-1" />Ler Código de Barras</Badge></li>
                           <li>Permita o acesso à câmera quando solicitado</li>
@@ -155,6 +228,15 @@ export default function Documentacao() {
                           <li>Ao detectar o código, um sinal sonoro confirmará a leitura</li>
                           <li>O número será automaticamente inserido e, se encontrado na base, o item será salvo automaticamente</li>
                         </ol>
+
+                        {/* Exemplo visual do scanner */}
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium flex items-center gap-2">
+                            <ArrowRight className="h-4 w-4 text-primary" />
+                            Visualização do leitor de código de barras:
+                          </p>
+                          <ExampleScannerModal />
+                        </div>
                         
                         <div className="bg-muted/50 p-3 rounded-lg space-y-2">
                           <p className="text-sm font-medium flex items-center gap-2">
@@ -184,8 +266,10 @@ export default function Documentacao() {
                 </Accordion>
               </section>
 
+              <Separator />
+
               {/* Situação dos Bens */}
-              <section className="space-y-3">
+              <section className="space-y-4">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
                   <CheckCircle className="h-5 w-5 text-muted-foreground" />
                   4. Classificação da Situação dos Bens
@@ -208,10 +292,36 @@ export default function Documentacao() {
                     <p className="text-sm text-muted-foreground">Bem sem condições de uso, necessita descarte</p>
                   </div>
                 </div>
+
+                {/* Exemplo de itens com diferentes situações */}
+                <div className="space-y-2 mt-4">
+                  <p className="text-sm font-medium flex items-center gap-2">
+                    <ArrowRight className="h-4 w-4 text-primary" />
+                    Exemplo de itens cadastrados com diferentes situações:
+                  </p>
+                  <div className="grid gap-2">
+                    <ExampleItemCard
+                      patrimonio="123456789"
+                      descricao="Mesa de Escritório em L - 1,60m"
+                      situacao="Bom"
+                      tipoCadastro="A"
+                      inventariante="João Silva"
+                    />
+                    <ExampleItemCard
+                      patrimonio="987654321"
+                      descricao="Cadeira Giratória com Braços"
+                      situacao="Regular"
+                      tipoCadastro="M"
+                      inventariante="Maria Santos"
+                    />
+                  </div>
+                </div>
               </section>
 
+              <Separator />
+
               {/* Itens Duplicados */}
-              <section className="space-y-3">
+              <section className="space-y-4">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
                   <AlertTriangle className="h-5 w-5 text-warning" />
                   5. Tratamento de Itens Duplicados
@@ -229,10 +339,28 @@ export default function Documentacao() {
                     Itens duplicados são sinalizados nos relatórios para verificação posterior.
                   </p>
                 </div>
+
+                {/* Exemplo visual de item duplicado */}
+                <div className="space-y-2">
+                  <p className="text-sm font-medium flex items-center gap-2">
+                    <ArrowRight className="h-4 w-4 text-primary" />
+                    Exemplo de como um item duplicado aparece na lista:
+                  </p>
+                  <ExampleItemCard
+                    patrimonio="123456789"
+                    descricao="Mesa de Escritório em L - 1,60m"
+                    situacao="Bom"
+                    tipoCadastro="A"
+                    inventariante="João Silva"
+                    duplicado
+                  />
+                </div>
               </section>
 
+              <Separator />
+
               {/* Gerenciando Itens */}
-              <section className="space-y-3">
+              <section className="space-y-4">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
                   <ListChecks className="h-5 w-5 text-muted-foreground" />
                   6. Gerenciando Itens Cadastrados
@@ -254,10 +382,36 @@ export default function Documentacao() {
                     dos últimos registros.
                   </p>
                 </div>
+
+                {/* Exemplo de lista de itens */}
+                <div className="space-y-2">
+                  <p className="text-sm font-medium flex items-center gap-2">
+                    <ArrowRight className="h-4 w-4 text-primary" />
+                    Exemplo de lista de itens com ações disponíveis:
+                  </p>
+                  <div className="grid gap-2">
+                    <ExampleItemCard
+                      patrimonio="456789123"
+                      descricao="Monitor LED 24 polegadas - Dell"
+                      situacao="Bom"
+                      tipoCadastro="A"
+                      inventariante="Pedro Costa"
+                    />
+                    <ExampleItemCard
+                      patrimonio="789123456"
+                      descricao="Teclado USB ABNT2 - Logitech"
+                      situacao="Ruim"
+                      tipoCadastro="M"
+                      inventariante="Ana Oliveira"
+                    />
+                  </div>
+                </div>
               </section>
 
+              <Separator />
+
               {/* Concluindo o Inventário */}
-              <section className="space-y-3">
+              <section className="space-y-4">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
                   <CheckCircle className="h-5 w-5 text-success" />
                   7. Concluindo o Inventário
@@ -280,10 +434,12 @@ export default function Documentacao() {
                 </div>
               </section>
 
+              <Separator />
+
               {/* Dicas Importantes */}
-              <section className="space-y-3">
+              <section className="space-y-4">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-primary" />
+                  <Lightbulb className="h-5 w-5 text-primary" />
                   8. Dicas Importantes
                 </h3>
                 <div className="grid gap-3">
@@ -303,6 +459,12 @@ export default function Documentacao() {
                     <p className="text-sm text-muted-foreground">
                       <strong>💡 Tipo de Cadastro:</strong> O sistema diferencia itens cadastrados 
                       automaticamente via código de barras (A) dos cadastrados manualmente (M) nos relatórios.
+                    </p>
+                  </div>
+                  <div className="p-3 border border-primary/30 rounded-lg bg-primary/5">
+                    <p className="text-sm text-muted-foreground">
+                      <strong>💡 Sinal Sonoro:</strong> Ao ler um código de barras com sucesso, o sistema 
+                      emite um breve "beep" para confirmar a leitura sem precisar olhar para a tela.
                     </p>
                   </div>
                 </div>
