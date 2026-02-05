@@ -12,7 +12,8 @@ import {
   Home,
   LogOut,
   User,
-  UsersRound
+  UsersRound,
+  BookOpen
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -29,6 +30,7 @@ const adminNavigation = [
   { name: "Usuários", href: "/usuarios", icon: Users },
   { name: "Grupos", href: "/grupos", icon: UsersRound },
   { name: "Relatórios", href: "/relatorios", icon: BarChart3 },
+  { name: "Documentação", href: "/documentacao", icon: BookOpen },
 ];
 
 export default function Layout() {
