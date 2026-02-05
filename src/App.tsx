@@ -13,6 +13,7 @@ import Relatorios from "./pages/Relatorios";
 import Grupos from "./pages/Grupos";
 import Inventariar from "./pages/Inventariar";
 import InventariarAmbiente from "./pages/InventariarAmbiente";
+import Documentacao from "./pages/Documentacao";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
@@ -34,6 +35,7 @@ const App = () => (
               <Route path="usuarios" element={<Usuarios />} />
               <Route path="grupos" element={<Grupos />} />
               <Route path="relatorios" element={<Relatorios />} />
+              <Route path="documentacao" element={<Documentacao />} />
               <Route path="inventariar" element={<Inventariar />} />
               <Route path="inventariar/:id" element={<InventariarAmbiente />} />
             </Route>
