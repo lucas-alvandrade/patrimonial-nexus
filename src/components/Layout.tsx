@@ -13,7 +13,8 @@ import {
   LogOut,
   User,
   UsersRound,
-  BookOpen
+  BookOpen,
+  DatabaseBackup
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
