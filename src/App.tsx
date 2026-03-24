@@ -10,6 +10,7 @@ import Bens from "./pages/Bens";
 import Ambientes from "./pages/Ambientes";
 import Usuarios from "./pages/Usuarios";
 import Relatorios from "./pages/Relatorios";
+import Migracao from "./pages/Migracao";
 import Grupos from "./pages/Grupos";
 import Inventariar from "./pages/Inventariar";
 import InventariarAmbiente from "./pages/InventariarAmbiente";
@@ -35,6 +36,7 @@ const App = () => (
               <Route path="usuarios" element={<Usuarios />} />
               <Route path="grupos" element={<Grupos />} />
               <Route path="relatorios" element={<Relatorios />} />
+              <Route path="migracao" element={<Migracao />} />
               <Route path="documentacao" element={<Documentacao />} />
               <Route path="inventariar" element={<Inventariar />} />
               <Route path="inventariar/:id" element={<InventariarAmbiente />} />
