@@ -10,6 +10,7 @@ import Bens from "./pages/Bens";
 import Ambientes from "./pages/Ambientes";
 import Usuarios from "./pages/Usuarios";
 import Relatorios from "./pages/Relatorios";
+import Migracao from "./pages/Migracao";
 import Grupos from "./pages/Grupos";
 import Inventariar from "./pages/Inventariar";
 import InventariarAmbiente from "./pages/InventariarAmbiente";
