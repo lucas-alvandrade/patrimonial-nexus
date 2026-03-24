@@ -31,6 +31,7 @@ const adminNavigation = [
   { name: "Usuários", href: "/usuarios", icon: Users },
   { name: "Grupos", href: "/grupos", icon: UsersRound },
   { name: "Relatórios", href: "/relatorios", icon: BarChart3 },
+  { name: "Migração", href: "/migracao", icon: DatabaseBackup },
   { name: "Documentação", href: "/documentacao", icon: BookOpen },
 ];
 
